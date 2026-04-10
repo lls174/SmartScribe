@@ -1,0 +1,126 @@
+.profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.profile-header {
+  margin-bottom: 2rem;
+}
+
+.profile-title {
+  font-size: 2rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.profile-card {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.profile-card .ant-card-body {
+  padding: 0 !important;
+}
+
+.profile-tabs .ant-tabs-nav {
+  background: rgba(26, 31, 58, 0.4) !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.profile-tabs .ant-tabs-nav::before {
+  border-bottom: none !important;
+}
+
+.profile-tabs .ant-tabs-tab {
+  background: transparent !important;
+  border: none !important;
+  color: #a5b4fc !important;
+  padding: 12px 24px !important;
+}
+
+.profile-tabs .ant-tabs-tab-active {
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #00d4ff !important;
+}
+
+.profile-tabs .ant-tabs-tab:hover {
+  color: #00d4ff !important;
+}
+
+.profile-tabs .ant-tabs-ink-bar {
+  background: #00d4ff !important;
+}
+
+.profile-tabs .ant-tabs-content {
+  padding: 24px !important;
+}
+
+.profile-form {
+  max-width: 400px;
+}
+
+.profile-form .ant-form-item-label > label {
+  color: #a5b4fc !important;
+}
+
+.profile-form .ant-input-affix-wrapper {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  padding: 4px 11px !important;
+}
+
+.profile-form .ant-input-affix-wrapper:hover {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+}
+
+.profile-form .ant-input-affix-wrapper-focused {
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1) !important;
+}
+
+.profile-form .ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  border: none !important;
+  color: #e0e7ff !important;
+}
+
+.profile-form .ant-input-affix-wrapper .ant-input::placeholder {
+  color: #6b7280 !important;
+}
+
+.profile-form .ant-input-affix-wrapper .ant-input-suffix {
+  color: #a5b4fc !important;
+}
+
+.profile-form .ant-input-affix-wrapper .ant-input-prefix {
+  color: #a5b4fc !important;
+}
+
+.profile-info {
+  color: #a5b4fc;
+  font-size: 14px;
+}
+
+.profile-info p {
+  margin-bottom: 0.5rem;
+}
+
+.profile-divider {
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 1rem;
+  }
+
+  .profile-title {
+    font-size: 1.5rem !important;
+  }
+
+  .profile-form {
+    max-width: 100%;
+  }
+}

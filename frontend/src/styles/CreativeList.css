@@ -1,0 +1,167 @@
+.creative-list-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.creative-list-header {
+  margin-bottom: 1.5rem;
+}
+
+.creative-list-title {
+  font-size: 2rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.creative-list-description {
+  color: #a5b4fc !important;
+  margin-bottom: 1rem !important;
+}
+
+.creative-list-card {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 8px;
+}
+
+/* 表格整体样式 */
+.creative-list-card .ant-table {
+  background: transparent;
+}
+
+.creative-list-card .ant-table-thead > tr > th {
+  background: rgba(26, 31, 58, 0.8) !important;
+  color: #00d4ff !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.creative-list-card .ant-table-tbody > tr > td {
+  background: rgba(37, 43, 72, 0.3) !important;
+  color: #e0e7ff !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.15) !important;
+}
+
+/* 表格行悬停 */
+.creative-list-row:hover > td,
+.creative-list-card .ant-table-tbody > tr:hover > td {
+  background: rgba(0, 212, 255, 0.08) !important;
+}
+
+/* 标题列 */
+.creative-list-title-text {
+  font-weight: 500;
+  color: #e0e7ff;
+}
+
+/* 操作按钮 */
+.creative-list-card .ant-btn-text {
+  color: #a5b4fc !important;
+}
+
+.creative-list-card .ant-btn-text:hover {
+  color: #00d4ff !important;
+  background: rgba(0, 212, 255, 0.1) !important;
+}
+
+.creative-list-card .ant-btn-text.danger:hover {
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 分页器样式 */
+.creative-list-card .ant-pagination {
+  margin-top: 16px;
+}
+
+.creative-list-card .ant-pagination-item {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 6px;
+}
+
+.creative-list-card .ant-pagination-item a {
+  color: #a5b4fc !important;
+}
+
+.creative-list-card .ant-pagination-item-active {
+  background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+  border-color: transparent !important;
+}
+
+.creative-list-card .ant-pagination-item-active a {
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.creative-list-card .ant-pagination-prev,
+.creative-list-card .ant-pagination-next {
+  background: transparent !important;
+  border: none !important;
+  color: #a5b4fc !important;
+}
+
+.creative-list-card .ant-pagination-prev:hover,
+.creative-list-card .ant-pagination-next:hover {
+  color: #00d4ff !important;
+}
+
+.creative-list-card .ant-select-selector {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: #a5b4fc !important;
+  border-radius: 6px;
+}
+
+.creative-list-card .ant-select-selection-item {
+  color: #a5b4fc !important;
+}
+
+.creative-list-card .ant-table-empty {
+  background: rgba(37, 43, 72, 0.3);
+  color: #6b7280;
+}
+
+/* 查看模态框 */
+.creative-view-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.creative-view-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  color: #a5b4fc;
+  font-size: 14px;
+}
+
+.creative-view-body {
+  line-height: 1.8;
+  color: #e0e7ff;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+  .creative-list-container {
+    padding: 1rem;
+  }
+
+  .creative-list-title {
+    font-size: 1.5rem !important;
+  }
+
+  .creative-view-content {
+    max-height: 50vh;
+  }
+
+  .creative-view-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

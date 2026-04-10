@@ -1,0 +1,137 @@
+.trash-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.trash-header {
+  margin-bottom: 2rem;
+}
+
+.trash-title {
+  font-size: 2rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.trash-description {
+  color: #a5b4fc !important;
+  margin-top: 0.5rem !important;
+}
+
+.trash-card {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.trash-card .ant-card-body {
+  padding: 0 !important;
+}
+
+.trash-tabs .ant-tabs-nav {
+  background: rgba(26, 31, 58, 0.4) !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.trash-tabs .ant-tabs-nav::before {
+  border-bottom: none !important;
+}
+
+.trash-tabs .ant-tabs-tab {
+  background: transparent !important;
+  border: none !important;
+  color: #a5b4fc !important;
+  padding: 12px 24px !important;
+}
+
+.trash-tabs .ant-tabs-tab-active {
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #00d4ff !important;
+}
+
+.trash-tabs .ant-tabs-tab:hover {
+  color: #00d4ff !important;
+}
+
+.trash-tabs .ant-tabs-ink-bar {
+  background: #00d4ff !important;
+}
+
+.trash-tabs .ant-tabs-content {
+  padding: 24px !important;
+}
+
+.trash-empty {
+  padding: 3rem 0;
+  text-align: center;
+  color: #6b7280 !important;
+}
+
+.trash-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #6b7280 !important;
+}
+
+.trash-table .ant-table {
+  background: transparent !important;
+}
+
+.trash-table .ant-table-thead > tr > th {
+  background: rgba(26, 31, 58, 0.6) !important;
+  color: #00d4ff !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.trash-table .ant-table-tbody > tr > td {
+  background: transparent !important;
+  color: #e0e7ff !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+.trash-table .ant-table-tbody > tr:hover > td {
+  background: rgba(0, 212, 255, 0.05) !important;
+}
+
+.trash-table .ant-table-tbody > tr > td strong {
+  color: #00d4ff !important;
+}
+
+.ant-pagination .ant-pagination-item {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.ant-pagination .ant-pagination-item a {
+  color: #a5b4fc !important;
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background: rgba(0, 212, 255, 0.2) !important;
+  border-color: #00d4ff !important;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: #00d4ff !important;
+}
+
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-next {
+  color: #a5b4fc !important;
+}
+
+.ant-pagination .ant-pagination-prev:hover,
+.ant-pagination .ant-pagination-next:hover {
+  color: #00d4ff !important;
+}
+
+@media (max-width: 768px) {
+  .trash-container {
+    padding: 1rem;
+  }
+
+  .trash-title {
+    font-size: 1.5rem !important;
+  }
+}

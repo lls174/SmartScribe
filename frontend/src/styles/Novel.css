@@ -1,0 +1,217 @@
+.novel-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.novel-header {
+  margin-bottom: 2rem;
+}
+
+.novel-title {
+  font-size: 2.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.novel-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.novel-action-button {
+  position: relative;
+}
+
+.novel-chapters {
+  margin-top: 2rem;
+}
+
+.novel-chapter-list {
+  background: rgba(26, 31, 58, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.novel-chapter-item {
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.5rem;
+  background: rgba(37, 43, 72, 0.5);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.novel-chapter-item:hover {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.5);
+  transform: translateX(3px);
+}
+
+.novel-chapter-item.active {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.6);
+}
+
+.novel-editor-container {
+  margin-top: 2rem;
+  background: rgba(26, 31, 58, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-height: 500px;
+}
+
+.novel-editor {
+  min-height: 450px;
+  background: transparent;
+  color: #e0e7ff;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.novel-editor .public-DraftEditor-content {
+  min-height: 450px;
+  color: #e0e7ff;
+}
+
+.novel-editor .public-DraftEditorPlaceholder-root {
+  color: #6b7280 !important;
+}
+
+.novel-content-preview {
+  min-height: 400px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 1rem;
+  white-space: pre-wrap;
+  line-height: 1.8;
+  color: #e0e7ff;
+  background: rgba(26, 31, 58, 0.3);
+  border-radius: 6px;
+}
+
+.novel-generating {
+  margin-top: 2rem;
+  background: rgba(26, 31, 58, 0.6);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.novel-generating::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--success-color), transparent);
+  animation: scanline 3s linear infinite;
+}
+
+.novel-generating-title {
+  font-size: 1.2rem !important;
+  color: var(--success-color) !important;
+  margin-bottom: 1rem !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.novel-generating-content {
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #ffffff;
+}
+
+.novel-generating-waiting {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.novel-empty-state {
+  border: 1px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 3rem;
+  text-align: center;
+  background: rgba(26, 31, 58, 0.4);
+  color: var(--text-secondary);
+}
+
+.novel-empty-state .ant-typography {
+  color: var(--text-secondary) !important;
+}
+
+.novel-modal-content {
+  background: rgba(26, 31, 58, 0.95);
+}
+
+.novel-form-label {
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+}
+
+.novel-stats {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(26, 31, 58, 0.4);
+  border-radius: 8px;
+}
+
+.novel-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.novel-stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.novel-stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 768px) {
+  .novel-container {
+    padding: 1rem;
+  }
+  
+  .novel-title {
+    font-size: 1.8rem !important;
+  }
+  
+  .novel-actions {
+    flex-direction: column;
+  }
+  
+  .novel-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

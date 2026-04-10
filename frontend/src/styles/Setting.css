@@ -1,0 +1,160 @@
+.setting-container {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.setting-header {
+  margin-bottom: 1.5rem;
+}
+
+.setting-title {
+  font-size: 2rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.setting-description {
+  color: #a5b4fc !important;
+  margin-bottom: 1rem !important;
+}
+
+.setting-alert {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 8px;
+}
+
+.setting-alert .ant-alert-message {
+  color: #00d4ff !important;
+  font-weight: 600;
+}
+
+.setting-alert .ant-alert-description {
+  color: #a5b4fc !important;
+}
+
+.setting-card {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 8px;
+}
+
+.setting-form-label {
+  color: #e0e7ff;
+  font-weight: 500;
+}
+
+.setting-form-extra {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.setting-section-title {
+  color: #e0e7ff !important;
+  margin-bottom: 1rem !important;
+}
+
+.setting-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.setting-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.setting-status-label {
+  color: #6b7280;
+  min-width: 80px;
+  font-size: 14px;
+}
+
+.setting-status-value {
+  color: #00d4ff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 密码输入框样式 */
+.setting-form .ant-input-affix-wrapper {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 6px;
+}
+
+.setting-form .ant-input-affix-wrapper:hover {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2) !important;
+}
+
+.setting-form .ant-input-affix-wrapper:focus-within {
+  border-color: rgba(0, 212, 255, 0.8) !important;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3) !important;
+}
+
+.setting-form .ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  border: none !important;
+  color: #e0e7ff !important;
+}
+
+.setting-form .ant-input-affix-wrapper .ant-input::placeholder {
+  color: #6b7280 !important;
+}
+
+/* 密码输入框眼睛图标 */
+.setting-form .ant-input-password-icon {
+  color: #a5b4fc !important;
+  font-size: 16px;
+}
+
+.setting-form .ant-input-password-icon:hover {
+  color: #00d4ff !important;
+}
+
+/* 自定义平台输入框样式 */
+.setting-form .ant-select {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 6px;
+}
+
+.setting-form .ant-select-selector {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: none !important;
+  color: #e0e7ff !important;
+}
+
+.setting-form .ant-select-selection-placeholder {
+  color: #6b7280 !important;
+}
+
+.setting-form .ant-select-dropdown {
+  background: rgba(26, 31, 58, 0.95) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 6px;
+}
+
+.setting-form .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(0, 212, 255, 0.1) !important;
+  color: #00d4ff !important;
+}
+
+.setting-form .ant-select-item:hover:not(.ant-select-item-option-disabled) {
+  background: rgba(0, 212, 255, 0.08) !important;
+  color: #e0e7ff !important;
+}
+
+@media (max-width: 768px) {
+  .setting-container {
+    padding: 1rem;
+  }
+
+  .setting-title {
+    font-size: 1.5rem !important;
+  }
+}

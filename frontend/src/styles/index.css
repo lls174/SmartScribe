@@ -1,0 +1,267 @@
+:root {
+  --primary-color: #00d4ff;
+  --secondary-color: #7c3aed;
+  --accent-color: #f59e0b;
+  --background-dark: #0a0e27;
+  --background-darker: #050816;
+  --surface-color: #1a1f3a;
+  --surface-light: #252b48;
+  --text-primary: #e0e7ff;
+  --text-secondary: #a5b4fc;
+  --border-color: #3b82f6;
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  --glow-primary: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-secondary: 0 0 20px rgba(124, 58, 237, 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background-darker) !important;
+}
+
+body {
+  font-family: 'Orbitron', 'Rajdhani', 'Segoe UI', 'Roboto', sans-serif;
+  background: linear-gradient(135deg, var(--background-darker) 0%, var(--background-dark) 100%) !important;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+p {
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+a:hover {
+  color: var(--secondary-color);
+}
+
+/* ========== 全局 Input 样式 - 兼容 Edge/Chrome/Firefox ========== */
+
+/* 独立 Input 组件的原生 input 元素 */
+input.ant-input {
+  background-color: rgb(10, 14, 39) !important;
+  background: rgb(10, 14, 39) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  color: #e0e7ff !important;
+  -webkit-text-fill-color: #e0e7ff !important;
+  caret-color: #00d4ff !important;
+  border-radius: 6px !important;
+  height: 36px !important;
+  padding: 4px 12px !important;
+  font-size: 14px !important;
+  transition: all 0.3s ease !important;
+}
+
+input.ant-input:hover {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+}
+
+input.ant-input:focus {
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+  outline: none !important;
+}
+
+input.ant-input::placeholder,
+input.ant-input::-webkit-input-placeholder {
+  color: rgba(165, 180, 252, 0.5) !important;
+  -webkit-text-fill-color: rgba(165, 180, 252, 0.5) !important;
+}
+
+/* Input.Password 的外层容器 */
+.ant-input-affix-wrapper {
+  background-color: rgb(10, 14, 39) !important;
+  background: rgb(10, 14, 39) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  border-radius: 6px !important;
+  padding: 0 11px !important;
+  transition: all 0.3s ease !important;
+}
+
+.ant-input-affix-wrapper:hover {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+}
+
+.ant-input-affix-wrapper-focused,
+.ant-input-affix-wrapper:focus-within {
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+}
+
+/* Password 内部的 input 必须透明 */
+.ant-input-affix-wrapper > input.ant-input,
+.ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #e0e7ff !important;
+  -webkit-text-fill-color: #e0e7ff !important;
+  height: auto !important;
+  padding: 0 !important;
+}
+
+.ant-input-password-icon,
+.ant-input-suffix .anticon {
+  color: #a5b4fc !important;
+}
+
+/* ========== 解决浏览器自动填充样式问题 ========== */
+
+/* Firefox */
+input.ant-input:-moz-autofill {
+  background-color: rgb(10, 14, 39) !important;
+  background: rgb(10, 14, 39) !important;
+  color: #e0e7ff !important;
+  -moz-text-fill-color: #e0e7ff !important;
+}
+
+/* Chrome, Safari, Edge */
+input.ant-input:-webkit-autofill,
+input.ant-input:-webkit-autofill:hover,
+input.ant-input:-webkit-autofill:focus,
+input.ant-input:-webkit-autofill:active {
+  background-color: rgb(10, 14, 39) !important;
+  background: rgb(10, 14, 39) !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  -webkit-text-fill-color: #e0e7ff !important;
+  color: #e0e7ff !important;
+  caret-color: #00d4ff !important;
+}
+
+/* 针对 Password 容器内的输入框 */
+.ant-input-affix-wrapper input:-webkit-autofill,
+.ant-input-affix-wrapper input:-webkit-autofill:hover,
+.ant-input-affix-wrapper input:-webkit-autofill:focus,
+.ant-input-affix-wrapper input:-webkit-autofill:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  -webkit-text-fill-color: #e0e7ff !important;
+  color: #e0e7ff !important;
+  caret-color: #00d4ff !important;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px var(--primary-color); }
+  50% { box-shadow: 0 0 20px var(--primary-color), 0 0 30px var(--secondary-color); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes blink {
+  0, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: var(--success-color);
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--secondary-color), var(--primary-color));
+}
+
+.DraftEditor-root {
+  color: #e0e7ff !important;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.DraftEditor-editorContainer {
+  min-height: 400px;
+}
+
+.public-DraftEditor-content {
+  color: #e0e7ff !important;
+}
+
+.public-DraftStyleDefault-block {
+  color: #e0e7ff !important;
+}
+
+.public-DraftEditorPlaceholder-root {
+  color: #6b7280 !important;
+}
+
+.public-DraftEditorPlaceholder-inner {
+  color: #6b7280 !important;
+}

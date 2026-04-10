@@ -1,0 +1,156 @@
+.creation-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.creation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.creation-title {
+  font-size: 2rem !important;
+  margin: 0 !important;
+}
+
+.creation-button {
+  font-weight: 500;
+}
+
+.novel-list {
+  margin-top: 1rem;
+}
+
+.novel-item {
+  border-bottom: none !important;
+  padding: 0 0 1rem 0 !important;
+}
+
+.novel-card {
+  width: 100%;
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.novel-card:hover {
+  border-color: rgba(0, 212, 255, 0.5) !important;
+}
+
+.novel-info {
+  flex: 1;
+}
+
+.novel-name {
+  color: #00d4ff !important;
+  font-size: 1.2rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.novel-description {
+  color: #a5b4fc !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.novel-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.novel-date {
+  color: #c7d2fe !important;
+  font-size: 0.9rem;
+}
+
+.novel-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.action-button {
+  font-weight: 500;
+}
+
+.creation-modal .ant-modal-content {
+  background: rgba(26, 31, 58, 0.95) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.creation-modal .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.creation-modal .ant-modal-title {
+  color: #00d4ff !important;
+}
+
+.creation-modal .ant-modal-close-x {
+  color: #a5b4fc !important;
+}
+
+.creation-input {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: #e0e7ff !important;
+}
+
+.creation-input:focus {
+  border-color: #00d4ff !important;
+}
+
+.creation-input::placeholder {
+  color: #6b7280 !important;
+}
+
+.ant-popover-inner {
+  background: rgba(26, 31, 58, 0.95) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.ant-popover-message-title {
+  color: #e0e7ff !important;
+}
+
+.ant-popover-buttons button {
+  background: rgba(26, 31, 58, 0.6) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: #e0e7ff !important;
+}
+
+.ant-popover-buttons button:hover {
+  border-color: #00d4ff !important;
+  color: #00d4ff !important;
+}
+
+.ant-popover-buttons .ant-btn-primary {
+  background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+  border: none !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 768px) {
+  .creation-container {
+    padding: 1rem;
+  }
+
+  .creation-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .creation-title {
+    font-size: 1.5rem !important;
+  }
+
+  .novel-actions {
+    flex-direction: column;
+  }
+}
