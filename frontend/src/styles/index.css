@@ -265,3 +265,140 @@ input.ant-input:-webkit-autofill:active {
 .public-DraftEditorPlaceholder-inner {
   color: #6b7280 !important;
 }
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  body {
+    padding-bottom: 80px;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.3rem;
+  }
+  
+  p {
+    font-size: 1rem;
+  }
+  
+  /* 内容区域 padding */
+  .ant-layout-content {
+    padding: 16px !important;
+  }
+  
+  /* 按钮响应式 */
+  .ant-btn {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+  
+  .ant-btn-lg {
+    font-size: 16px;
+    padding: 8px 16px;
+  }
+  
+  /* 卡片响应式 */
+  .ant-card {
+    margin-bottom: 16px;
+  }
+  
+  /* 表单响应式 */
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+  
+  .ant-input {
+    font-size: 14px;
+    height: 40px;
+  }
+  
+  .ant-select {
+    font-size: 14px;
+  }
+  
+  /* 表格响应式 */
+  .ant-table {
+    font-size: 12px;
+  }
+  
+  .ant-table th,
+  .ant-table td {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+  
+  h1 {
+    font-size: 1.6rem;
+  }
+  
+  h2 {
+    font-size: 1.3rem;
+  }
+  
+  h3 {
+    font-size: 1.1rem;
+  }
+  
+  .ant-layout-content {
+    padding: 12px !important;
+  }
+  
+  .ant-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  
+  .ant-btn-lg {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+  
+  .ant-form-item {
+    margin-bottom: 12px;
+  }
+  
+  .ant-input {
+    font-size: 13px;
+    height: 36px;
+  }
+  
+  .ant-table th,
+  .ant-table td {
+    padding: 6px 8px;
+  }
+}
+
+/* 移动端触摸优化 */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .ant-btn,
+  .ant-menu-item,
+  .ant-dropdown-menu-item,
+  a {
+    touch-action: manipulation;
+  }
+  
+  .ant-btn {
+    min-height: 44px;
+  }
+  
+  .ant-menu-item {
+    min-height: 44px;
+  }
+}

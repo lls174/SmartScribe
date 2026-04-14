@@ -2,28 +2,7 @@ const express = require('express')
 const router = express.Router()
 const creativeService = require('../services/creativeService')
 const { body, validationResult } = require('express-validator')
-
-const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token
-  if (!token) {
-    return res.status(401).json({ message: '未授权' })
-  }
-
-  try {
-    if (process.env.NODE_ENV === 'test' && token === 'test-token') {
-      req.userId = 1
-      return next()
-    }
-    
-    const jwt = require('jsonwebtoken')
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    console.error('Token验证失败:', error)
-    return res.status(401).json({ message: '无效的token' })
-  }
-}
+const { verifyToken } = require('../middleware/auth')
 
 router.post('/create', 
   verifyToken,

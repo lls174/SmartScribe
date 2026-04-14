@@ -1,31 +1,34 @@
 const express = require('express')
 const router = express.Router()
+const novelAgent = require('../services/novelAgent')
+const contextManager = require('../services/contextManager')
 const aiService = require('../services/aiService')
 const { body, validationResult } = require('express-validator')
+const { verifyToken } = require('../middleware/auth')
 
-const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token
-  if (!token) {
-    return res.status(401).json({ message: '未授权' })
-  }
-
-  try {
-    if (process.env.NODE_ENV === 'test' && token === 'test-token') {
-      req.userId = 1
-      return next()
-    }
-    
-    const jwt = require('jsonwebtoken')
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    console.error('Token验证失败:', error)
-    return res.status(401).json({ message: '无效的token' })
-  }
+function buildNovelContext(req) {
+  const { novelMeta, chapters, currentChapterId } = req.body
+  return contextManager.buildNovelContext(novelMeta, chapters, currentChapterId)
 }
 
-const SUPPORTED_PLATFORMS = ['aliyun', 'glm', 'zhipu', 'deepseek', 'openai', 'custom']
+function setupSSE(res, req) {
+  let isConnectionClosed = false
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+
+  req.on('close', () => {
+    isConnectionClosed = true
+  })
+
+  const onChunk = (chunk) => {
+    if (!isConnectionClosed) {
+      res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
+    }
+  }
+
+  return { isConnectionClosed, onChunk }
+}
 
 router.post('/generate', 
   verifyToken,
@@ -35,9 +38,10 @@ router.post('/generate',
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  body('novelMeta').optional(),
+  body('chapters').optional(),
+  body('currentChapterId').optional(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
@@ -47,52 +51,47 @@ router.post('/generate',
       const { 
         prompt, chapterTitle, 
         platform = 'aliyun', model = 'qwen-turbo',
-        apiKey, customBaseURL
+        apiKey, customBaseURL,
+        genre, style, corePlot, characters, wordCount, other
       } = req.body
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
+      const novelContext = buildNovelContext(req)
+      const aiOptions = { apiKey, customBaseURL }
 
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
-
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
+      const userPrompt = {
+        genre, style, corePlot, characters, wordCount, chapterTitle, other,
+        ...((typeof prompt === 'string') ? { corePlot: prompt } : {})
       }
 
-      const aiOptions = { apiKey, customBaseURL }
-      const result = await aiService.generateChapter(prompt, chapterTitle, platform, model, onChunk, aiOptions)
+      const result = await novelAgent.generateChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true, plot: result.plot })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('生成章节失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '生成章节失败' })
+    } catch (error) {
+      console.error('生成章节失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '生成章节失败' })
+      }
     }
   }
-})
+)
 
 router.post('/continue', 
   verifyToken,
   body('prompt').optional().trim(),
-  body('lastContent').trim().notEmpty().withMessage('上次内容不能为空'),
+  body('lastContent').optional().trim(),
   body('lastPlot').optional().trim(),
   body('platform').optional().trim(),
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  body('novelMeta').optional(),
+  body('chapters').optional(),
+  body('currentChapterId').optional(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
@@ -102,43 +101,43 @@ router.post('/continue',
       const { 
         prompt, lastContent, lastPlot, 
         platform = 'aliyun', model = 'qwen-turbo',
-        apiKey, customBaseURL
+        apiKey, customBaseURL,
+        wordCount
       } = req.body
 
-      if (!lastContent || !lastContent.trim()) {
-        return res.status(400).json({ message: '上次内容不能为空' })
+      let novelContext = buildNovelContext(req)
+
+      if (!novelContext.trim() && lastContent) {
+        novelContext = contextManager.buildNovelContext(
+          null,
+          [{ id: 1, title: '上一章', content: lastContent, plot: lastPlot }],
+          1
+        )
       }
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
-
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
+      if (!novelContext.trim()) {
+        return res.status(400).json({ message: '缺少上下文信息，无法续写' })
       }
 
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
-      const result = await aiService.continueChapter(lastContent, lastPlot, prompt, platform, model, onChunk, aiOptions)
+
+      const userPrompt = { customPrompt: prompt, wordCount }
+
+      const result = await novelAgent.continueChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true, plot: result.plot })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('续写章节失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '续写章节失败' })
+    } catch (error) {
+      console.error('续写章节失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '续写章节失败' })
+      }
     }
   }
-})
+)
 
 router.post('/polish', 
   verifyToken,
@@ -148,9 +147,10 @@ router.post('/polish',
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  body('novelMeta').optional(),
+  body('chapters').optional(),
+  body('currentChapterId').optional(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
@@ -163,36 +163,26 @@ router.post('/polish',
         apiKey, customBaseURL
       } = req.body
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
-
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
-      }
-
+      const novelContext = buildNovelContext(req)
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
-      const polishedContent = await aiService.polishContent(content, prompt, platform, model, onChunk, aiOptions)
+
+      const userPrompt = { customPrompt: prompt }
+
+      const polishedContent = await novelAgent.polishChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('润色内容失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '润色内容失败' })
+    } catch (error) {
+      console.error('润色内容失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '润色内容失败' })
+      }
     }
   }
-})
+)
 
 router.post('/setting', 
   verifyToken,
@@ -203,50 +193,37 @@ router.post('/setting',
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
         return res.status(400).json({ message: errors.array()[0].msg })
       }
 
-      const { 
-        type, prompt, 
-        platform = 'aliyun', model = 'qwen-turbo',
-        apiKey, customBaseURL
-      } = req.body
+      const { type, prompt, platform = 'aliyun', model = 'qwen-turbo', apiKey, customBaseURL } = req.body
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
+      const typeMap = { character: '人物设定', world: '世界观设定', item: '道具设定' }
+      const typeText = typeMap[type] || '设定'
 
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
+      const systemPrompt = contextManager.buildSystemPrompt('generate')
+      const fullPrompt = `${systemPrompt}\n\n请生成一个${typeText}。${prompt}`
 
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
-      }
-
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
-      const generatedSetting = await aiService.generateSetting(type, prompt, platform, model, onChunk, aiOptions)
+
+      const result = await aiService.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('生成设定失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '生成设定失败' })
+    } catch (error) {
+      console.error('生成设定失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '生成设定失败' })
+      }
     }
   }
-})
+)
 
 router.post('/outline', 
   verifyToken,
@@ -258,50 +235,34 @@ router.post('/outline',
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
         return res.status(400).json({ message: errors.array()[0].msg })
       }
 
-      const { 
-        novelType, corePlot, length, 
-        platform = 'aliyun', model = 'qwen-turbo',
-        apiKey, customBaseURL
-      } = req.body
+      const { novelType, corePlot, length, platform = 'aliyun', model = 'qwen-turbo', apiKey, customBaseURL } = req.body
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
+      const novelContext = buildNovelContext(req)
+      const userPrompt = `小说类型：${novelType}\n核心剧情：${corePlot}\n${length ? '篇幅要求：' + length : ''}`
 
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
-
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
-      }
-
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
-      const outline = await aiService.generateOutline(novelType, corePlot, length, platform, model, onChunk, aiOptions)
+
+      const result = await novelAgent.generateOutline(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('生成大纲失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '生成大纲失败' })
+    } catch (error) {
+      console.error('生成大纲失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '生成大纲失败' })
+      }
     }
   }
-})
+)
 
 router.post('/creative', 
   verifyToken,
@@ -312,49 +273,30 @@ router.post('/creative',
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
   async (req, res) => {
-    let isConnectionClosed = false
-    
     try {
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
         return res.status(400).json({ message: errors.array()[0].msg })
       }
 
-      const { 
-        prompt, type, 
-        platform = 'aliyun', model = 'qwen-turbo',
-        apiKey, customBaseURL
-      } = req.body
+      const { prompt, type, platform = 'aliyun', model = 'qwen-turbo', apiKey, customBaseURL } = req.body
 
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-
-      req.on('close', () => {
-        isConnectionClosed = true
-        console.log('客户端断开连接')
-      })
-
-      const onChunk = (chunk) => {
-        if (!isConnectionClosed) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`)
-        }
-      }
-
+      const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
-      const creativeContent = await aiService.generateCreative(prompt, type, platform, model, onChunk, aiOptions)
+
+      const result = await aiService.generateContent(prompt, platform, model, onChunk, aiOptions)
 
       if (!isConnectionClosed) {
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-
-  } catch (error) {
-    console.error('生成创意失败:', error)
-    if (!isConnectionClosed && !res.headersSent) {
-      res.status(500).json({ message: '生成创意失败' })
+    } catch (error) {
+      console.error('生成创意失败:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || '生成创意失败' })
+      }
     }
   }
-})
+)
 
 module.exports = router

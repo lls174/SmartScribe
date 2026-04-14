@@ -1,4 +1,5 @@
 const axios = require('axios')
+const util = require('util')
 
 const PLATFORM_BASE_URLS = {
   aliyun: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
@@ -59,16 +60,19 @@ class AIService {
 
     return {
       baseURL: aiOptions.customBaseURL || defaultBaseURL,
-      apiKey: aiOptions.apiKey || defaultApiKey
+      apiKey: (aiOptions.apiKey && aiOptions.apiKey.trim()) || defaultApiKey || ''
     }
   }
 
   async generateContent(prompt, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
     try {
       const { baseURL, apiKey } = this.getPlatformConfig(platform, aiOptions)
+      console.log('API配置 - platform:', platform, 'baseURL:', baseURL, 
+        'apiKey来源:', aiOptions?.apiKey ? '用户输入' : (apiKey ? '环境变量' : '无'),
+        'apiKey长度:', apiKey?.length || 0)
 
       if (!apiKey) {
-        throw new Error('API密钥未配置，请在AI设置中填写密钥')
+        throw new Error('API密钥未配置，请在AI设置页面填写密钥，或设置环境变量 GLM_AI_KEY')
       }
 
       if (!baseURL) {
@@ -85,6 +89,7 @@ class AIService {
   async callOpenAICompatibleAPI(baseURL, apiKey, prompt, model = 'qwen-turbo', onChunk) {
     try {
       console.log('调用AI API, baseURL:', baseURL, 'model:', model, 'stream:', !!onChunk)
+      console.log('提示词长度:', prompt?.length || 0)
 
       const requestData = {
         model: model,
@@ -94,14 +99,15 @@ class AIService {
             content: prompt
           }
         ],
-        max_tokens: 5000,
+        max_tokens: 4095,
         temperature: 0.7
       }
 
       if (onChunk) {
         requestData.stream = true
-        requestData.stream_options = { include_usage: true }
       }
+
+      console.log('请求数据:', JSON.stringify({ ...requestData, messages: `[${requestData.messages.length}条消息]` }))
 
       const response = await axios.post(
         baseURL,
@@ -184,7 +190,44 @@ class AIService {
       console.error('调用AI API失败:', error.message)
       if (error.response) {
         console.error('响应状态:', error.response.status)
-        console.error('响应数据:', error.response.data)
+        console.error('响应Content-Type:', error.response.headers?.['content-type'])
+        
+        const raw = error.response.data
+        let responseData = ''
+        
+        if (!raw) {
+          responseData = '[空响应体]'
+        } else if (typeof raw === 'string') {
+          responseData = raw.substring(0, 500)
+        } else if (Buffer.isBuffer(raw)) {
+          responseData = raw.toString('utf-8').substring(0, 500)
+        } else if (raw._readableState !== undefined || typeof raw.read === 'function') {
+          responseData = '[流式响应对象, 无法直接读取]'
+        } else if (typeof raw === 'object') {
+          try {
+            const str = JSON.stringify(raw)
+            if (str === '{}' || str === 'undefined') {
+              responseData = util.inspect(raw, { depth: 2, maxArrayLength: 5 }).substring(0, 500)
+            } else {
+              responseData = str.substring(0, 500)
+            }
+          } catch (_) {
+            responseData = util.inspect(raw, { depth: 1 }).substring(0, 500)
+          }
+        }
+        
+        console.error('响应数据:', responseData)
+        
+        let errorMsg = ''
+        if (raw && typeof raw === 'object' && !raw._readableState) {
+          errorMsg = raw?.error?.message || raw?.message || responseData
+        } else if (responseData && responseData !== '[空响应体]' && responseData !== '[流式响应对象, 无法直接读取]') {
+          errorMsg = responseData
+        } else {
+          errorMsg = `请求参数: model=${error.config?.data ? JSON.parse(error.config.data).model : '?'}`
+        }
+        
+        throw new Error(`AI API错误(${error.response.status}): ${errorMsg}`)
       }
       throw error
     }

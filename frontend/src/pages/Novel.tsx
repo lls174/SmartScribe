@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Editor, EditorState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js'
 import 'draft-js/dist/Draft.css'
 import { aiService } from '@services/aiService'
+import type { NovelContext } from '@services/aiService'
 import { novelService } from '@services/novelService'
 import { useAuth } from '@hooks/useAuth'
 import { useAIConfig } from '@contexts/AIConfigContext'
@@ -46,6 +47,24 @@ const Novel: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState('')
   const [draggingChapterId, setDraggingChapterId] = useState<number | null>(null)
   const editorRef = useRef<Editor>(null)
+
+  const buildNovelContext = (): NovelContext => {
+    return {
+      novelMeta: {
+        name: undefined,
+        genre: genre === '自定义' ? customGenre : genre,
+        style: style === '自定义' ? customStyle : style,
+        totalChapters: chapters.length
+      },
+      chapters: chapters.map(c => ({
+        id: c.id,
+        title: c.title,
+        content: c.content,
+        plot: c.plot
+      })),
+      currentChapterId: currentChapter?.id
+    }
+  }
 
   useEffect(() => {
     if (authLoading) return
@@ -271,28 +290,33 @@ const Novel: React.FC = () => {
       const contentText = contentState.getPlainText()
 
       let result = { content: '', plot: '' }
+      const ctx = buildNovelContext()
       
       if (actionType === 'generate') {
-        // 整合配置生成提示词
         const selectedGenre = genre === '自定义' ? customGenre : genre
         const selectedStyle = style === '自定义' ? customStyle : style
         
-        const generatedPrompt = `题材：${selectedGenre}\n风格：${selectedStyle}\n${corePlot ? `核心剧情：${corePlot}\n` : ''}${characters ? `登场人物性格：${characters}\n` : ''}${other ? `其他要求：${other}\n` : ''}字数要求：${wordCount}字`
-        
         result = await aiService.generateChapter(
-          generatedPrompt, 
+          corePlot || '请生成一个章节',
           chapterTitle,
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
           (plot) => {
           },
-          config
+          config,
+          ctx,
+          {
+            genre: selectedGenre,
+            style: selectedStyle,
+            corePlot,
+            characters,
+            wordCount,
+            other
+          }
         )
       } else if (actionType === 'continue') {
-        const continuePrompt = `${customPrompt ? customPrompt + '\n' : ''}字数要求：${continueWordCount}字`
-        console.log('currentChapter:', currentChapter)
-        console.log('currentChapter?.content:', currentChapter?.content)
+        const continuePrompt = customPrompt || undefined
         result = await aiService.continueChapter(
           currentChapter?.content || '', 
           currentChapter?.plot || '',
@@ -302,7 +326,9 @@ const Novel: React.FC = () => {
           },
           (plot) => {
           },
-          config
+          config,
+          ctx,
+          continueWordCount
         )
       } else {
         const polishResult = await aiService.polishContent(
@@ -313,7 +339,8 @@ const Novel: React.FC = () => {
           },
           () => {
           },
-          config
+          config,
+          ctx
         )
         result = { content: polishResult, plot: currentChapter?.plot || '' }
       }

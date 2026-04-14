@@ -1,8 +1,8 @@
-import React from 'react'
-import { Layout, Menu, Button, Space, Dropdown } from 'antd'
+import React, { useState } from 'react'
+import { Layout, Menu, Button, Space, Dropdown, Drawer } from 'antd'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@hooks/useAuth'
-import { UserOutlined, LogoutOutlined, DeleteOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons'
 
 const { Header: AntHeader } = Layout
 
@@ -10,6 +10,7 @@ const Header: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, logout } = useAuth()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -68,12 +69,24 @@ const Header: React.FC = () => {
         <div className="header-logo">
           SmartScribe
         </div>
+        
+        {/* 桌面端菜单 */}
         <Menu
           mode="horizontal"
           selectedKeys={[location.pathname]}
           items={menuItems}
           className="header-menu"
         />
+        
+        {/* 移动端菜单按钮 */}
+        <div className="mobile-menu-btn">
+          <Button
+            icon={<MenuOutlined />}
+            onClick={() => setMobileMenuOpen(true)}
+            className="mobile-menu-toggle"
+          />
+        </div>
+        
         <Space>
           {isAuthenticated ? (
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -99,6 +112,40 @@ const Header: React.FC = () => {
           )}
         </Space>
       </div>
+      
+      {/* 移动端侧边菜单 */}
+      <Drawer
+        title={<div className="drawer-logo">SmartScribe</div>}
+        placement="right"
+        onClose={() => setMobileMenuOpen(false)}
+        open={mobileMenuOpen}
+        width={280}
+        className="mobile-drawer"
+      >
+        <Menu
+          mode="vertical"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          className="mobile-drawer-menu"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+        {isAuthenticated && (
+          <div className="mobile-drawer-divider"></div>
+        )}
+        {isAuthenticated && (
+          <Menu
+            mode="vertical"
+            items={userMenuItems}
+            className="mobile-drawer-menu"
+            onClick={(e) => {
+              if (e.key !== 'logout') {
+                setMobileMenuOpen(false)
+              }
+            }}
+          />
+        )}
+      </Drawer>
+      
       <style>{`
         .sci-fi-header {
           background: rgba(26, 31, 58, 0.8) !important;
@@ -197,6 +244,115 @@ const Header: React.FC = () => {
         .ant-dropdown-menu-item:hover {
           background: rgba(0, 212, 255, 0.1) !important;
           color: #00d4ff !important;
+        }
+
+        /* 移动端菜单按钮 */
+        .mobile-menu-btn {
+          display: none;
+        }
+
+        .mobile-menu-toggle {
+          background: rgba(26, 31, 58, 0.6) !important;
+          border: 1px solid rgba(59, 130, 246, 0.3) !important;
+          color: #e0e7ff !important;
+        }
+
+        .mobile-menu-toggle:hover {
+          background: rgba(37, 43, 72, 0.8) !important;
+          border-color: rgba(0, 212, 255, 0.5) !important;
+          color: #00d4ff !important;
+        }
+
+        /* 移动端侧边菜单 */
+        .mobile-drawer {
+          background: rgba(10, 14, 39, 0.95) !important;
+          backdrop-filter: blur(10px);
+          border-left: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .drawer-logo {
+          font-size: 1.2rem;
+          font-weight: bold;
+          background: linear-gradient(135deg, #00d4ff, #7c3aed);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          letter-spacing: 0.05em;
+        }
+
+        .mobile-drawer-menu {
+          background: transparent !important;
+          border: none !important;
+        }
+
+        .mobile-drawer-menu .ant-menu-item {
+          color: #a5b4fc !important;
+          margin: 8px 0;
+          border-radius: 6px;
+        }
+
+        .mobile-drawer-menu .ant-menu-item:hover {
+          color: #00d4ff !important;
+          background: rgba(0, 212, 255, 0.1) !important;
+        }
+
+        .mobile-drawer-menu .ant-menu-item-selected {
+          color: #00d4ff !important;
+          background: rgba(0, 212, 255, 0.15) !important;
+        }
+
+        .mobile-drawer-divider {
+          height: 1px;
+          background: rgba(59, 130, 246, 0.2);
+          margin: 16px 0;
+        }
+
+        /* 响应式布局 */
+        @media (max-width: 768px) {
+          .sci-fi-header {
+            height: 56px;
+            line-height: 56px;
+          }
+
+          .header-content {
+            padding: 0 16px;
+          }
+
+          .header-logo {
+            font-size: 1.2rem;
+          }
+
+          .header-menu {
+            display: none;
+          }
+
+          .mobile-menu-btn {
+            display: block;
+          }
+
+          .header-login-btn,
+          .header-register-btn,
+          .header-user-btn {
+            font-size: 12px;
+            padding: 4px 12px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .header-content {
+            padding: 0 12px;
+          }
+
+          .header-logo {
+            font-size: 1.1rem;
+          }
+
+          .header-login-btn,
+          .header-register-btn,
+          .header-user-btn {
+            font-size: 11px;
+            padding: 4px 8px;
+          }
         }
       `}</style>
     </AntHeader>

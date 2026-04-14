@@ -24,6 +24,23 @@ interface AIRequestConfig {
   customBaseURL?: string
 }
 
+export interface NovelContext {
+  novelMeta?: {
+    name?: string
+    description?: string
+    genre?: string
+    style?: string
+    totalChapters?: number
+  }
+  chapters?: Array<{
+    id: number
+    title?: string
+    content?: string
+    plot?: string
+  }>
+  currentChapterId?: number
+}
+
 const createSSERequest = (
   url: string,
   body: Record<string, unknown>,
@@ -50,51 +67,47 @@ const createSSERequest = (
   
   let fullContent = ''
   let plot = ''
-  let processedLines = new Set<number>()
-  const MAX_PROCESSED_LINES = 1000
+  let buffer = ''
   
   xhr.onprogress = () => {
     const responseText = xhr.responseText
-    const lines = responseText.split('\n')
+    const newData = responseText.substring(buffer.length)
+    buffer = responseText
     
-    lines.forEach((line, index) => {
-      if (processedLines.has(index)) return
+    if (newData) {
+      const lines = newData.split('\n')
       
-      if (line.startsWith('data: ')) {
-        const dataStr = line.substring(6)
-        if (dataStr) {
-          try {
-            const data = JSON.parse(dataStr)
-            if (data.content) {
-              fullContent += data.content
-              onChunk?.(data.content)
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (trimmedLine.startsWith('data: ')) {
+          const dataStr = trimmedLine.substring(6)
+          if (dataStr) {
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.content) {
+                fullContent += data.content
+                onChunk?.(data.content)
+              }
+              if (data.plot) {
+                plot = data.plot
+              }
+              if (data.done) {
+                onDone?.({
+                  plot
+                })
+              }
+            } catch (error) {
+              console.error('解析SSE数据失败:', error)
             }
-            if (data.plot) {
-              plot = data.plot
-            }
-            if (data.done) {
-              onDone?.({
-                plot
-              })
-            }
-            processedLines.add(index)
-            
-            // 限制 processedLines 集合大小，防止内存泄漏
-            if (processedLines.size > MAX_PROCESSED_LINES) {
-              const oldestLine = Math.min(...processedLines)
-              processedLines.delete(oldestLine)
-            }
-          } catch (error) {
-            console.error('解析SSE数据失败:', error)
           }
         }
       }
-    })
+    }
   }
   
   xhr.onload = () => {
     if (xhr.status >= 200 && xhr.status < 300) {
-      resolve?.({ content: fullContent, plot })
+      resolve?.( { content: fullContent, plot })
     } else {
       try {
         const errorData = JSON.parse(xhr.responseText)
@@ -119,7 +132,16 @@ export const aiService = {
     chapterTitle?: string,
     onChunk?: (chunk: string) => void,
     onDone?: (plot: string) => void,
-    aiConfig?: AIRequestConfig
+    aiConfig?: AIRequestConfig,
+    novelContext?: NovelContext,
+    generationParams?: {
+      genre?: string
+      style?: string
+      corePlot?: string
+      characters?: string
+      wordCount?: string
+      other?: string
+    }
   ): Promise<{ content: string; plot: string }> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
     const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
@@ -134,7 +156,16 @@ export const aiService = {
             platform,
             model,
             apiKey: aiConfig?.apiKey || '',
-            customBaseURL: aiConfig?.customBaseURL || ''
+            customBaseURL: aiConfig?.customBaseURL || '',
+            novelMeta: novelContext?.novelMeta,
+            chapters: novelContext?.chapters,
+            currentChapterId: novelContext?.currentChapterId,
+            genre: generationParams?.genre,
+            style: generationParams?.style,
+            corePlot: generationParams?.corePlot,
+            characters: generationParams?.characters,
+            wordCount: generationParams?.wordCount,
+            other: generationParams?.other
           },
           onChunk,
           (data) => onDone?.(data.plot),
@@ -154,7 +185,9 @@ export const aiService = {
     prompt?: string,
     onChunk?: (chunk: string) => void,
     onDone?: (plot: string) => void,
-    aiConfig?: AIRequestConfig
+    aiConfig?: AIRequestConfig,
+    novelContext?: NovelContext,
+    wordCount?: string
   ): Promise<{ content: string; plot: string }> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
     const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
@@ -170,7 +203,11 @@ export const aiService = {
             platform,
             model,
             apiKey: aiConfig?.apiKey || '',
-            customBaseURL: aiConfig?.customBaseURL || ''
+            customBaseURL: aiConfig?.customBaseURL || '',
+            novelMeta: novelContext?.novelMeta,
+            chapters: novelContext?.chapters,
+            currentChapterId: novelContext?.currentChapterId,
+            wordCount
           },
           onChunk,
           (data) => onDone?.(data.plot),
@@ -189,7 +226,8 @@ export const aiService = {
     prompt?: string,
     onChunk?: (chunk: string) => void,
     onDone?: () => void,
-    aiConfig?: AIRequestConfig
+    aiConfig?: AIRequestConfig,
+    novelContext?: NovelContext
   ): Promise<string> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
     const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
@@ -212,41 +250,37 @@ export const aiService = {
         xhr.responseType = 'text'
         
         let fullContent = ''
-        let processedLines = new Set<number>()
-        const MAX_PROCESSED_LINES = 1000
+        let buffer = ''
         
         xhr.onprogress = () => {
           const responseText = xhr.responseText
-          const lines = responseText.split('\n')
+          const newData = responseText.substring(buffer.length)
+          buffer = responseText
           
-          lines.forEach((line, index) => {
-            if (processedLines.has(index)) return
+          if (newData) {
+            const lines = newData.split('\n')
             
-            if (line.startsWith('data: ')) {
-              const dataStr = line.substring(6)
-              if (dataStr) {
-                try {
-                  const data = JSON.parse(dataStr)
-                  if (data.content) {
-                    fullContent += data.content
-                    onChunk?.(data.content)
+            for (const line of lines) {
+              const trimmedLine = line.trim()
+              if (trimmedLine.startsWith('data: ')) {
+                const dataStr = trimmedLine.substring(6)
+                if (dataStr) {
+                  try {
+                    const data = JSON.parse(dataStr)
+                    if (data.content) {
+                      fullContent += data.content
+                      onChunk?.(data.content)
+                    }
+                    if (data.done) {
+                      onDone?.()
+                    }
+                  } catch (error) {
+                    console.error('解析SSE数据失败:', error)
                   }
-                  if (data.done) {
-                    onDone?.()
-                  }
-                  processedLines.add(index)
-                  
-                  // 限制 processedLines 集合大小，防止内存泄漏
-                  if (processedLines.size > MAX_PROCESSED_LINES) {
-                    const oldestLine = Math.min(...processedLines)
-                    processedLines.delete(oldestLine)
-                  }
-                } catch (error) {
-                  console.error('解析SSE数据失败:', error)
                 }
               }
             }
-          })
+          }
         }
         
         xhr.onload = () => {
@@ -272,7 +306,10 @@ export const aiService = {
           platform,
           model,
           apiKey: aiConfig?.apiKey || '',
-          customBaseURL: aiConfig?.customBaseURL || ''
+          customBaseURL: aiConfig?.customBaseURL || '',
+          novelMeta: novelContext?.novelMeta,
+          chapters: novelContext?.chapters,
+          currentChapterId: novelContext?.currentChapterId
         }))
       }).catch(() => {
         reject(new Error('获取CSRF Token失败'))
@@ -308,41 +345,37 @@ export const aiService = {
         xhr.responseType = 'text'
         
         let fullContent = ''
-        let processedLines = new Set<number>()
-        const MAX_PROCESSED_LINES = 1000
+        let buffer = ''
         
         xhr.onprogress = () => {
           const responseText = xhr.responseText
-          const lines = responseText.split('\n')
+          const newData = responseText.substring(buffer.length)
+          buffer = responseText
           
-          lines.forEach((line, index) => {
-            if (processedLines.has(index)) return
+          if (newData) {
+            const lines = newData.split('\n')
             
-            if (line.startsWith('data: ')) {
-              const dataStr = line.substring(6)
-              if (dataStr) {
-                try {
-                  const data = JSON.parse(dataStr)
-                  if (data.content) {
-                    fullContent += data.content
-                    onChunk?.(data.content)
+            for (const line of lines) {
+              const trimmedLine = line.trim()
+              if (trimmedLine.startsWith('data: ')) {
+                const dataStr = trimmedLine.substring(6)
+                if (dataStr) {
+                  try {
+                    const data = JSON.parse(dataStr)
+                    if (data.content) {
+                      fullContent += data.content
+                      onChunk?.(data.content)
+                    }
+                    if (data.done) {
+                      onDone?.()
+                    }
+                  } catch (error) {
+                    console.error('解析SSE数据失败:', error)
                   }
-                  if (data.done) {
-                    onDone?.()
-                  }
-                  processedLines.add(index)
-                  
-                  // 限制 processedLines 集合大小，防止内存泄漏
-                  if (processedLines.size > MAX_PROCESSED_LINES) {
-                    const oldestLine = Math.min(...processedLines)
-                    processedLines.delete(oldestLine)
-                  }
-                } catch (error) {
-                  console.error('解析SSE数据失败:', error)
                 }
               }
             }
-          })
+          }
         }
         
         xhr.onload = () => {
@@ -405,41 +438,37 @@ export const aiService = {
         xhr.responseType = 'text'
         
         let fullContent = ''
-        let processedLines = new Set<number>()
-        const MAX_PROCESSED_LINES = 1000
+        let buffer = ''
         
         xhr.onprogress = () => {
           const responseText = xhr.responseText
-          const lines = responseText.split('\n')
+          const newData = responseText.substring(buffer.length)
+          buffer = responseText
           
-          lines.forEach((line, index) => {
-            if (processedLines.has(index)) return
+          if (newData) {
+            const lines = newData.split('\n')
             
-            if (line.startsWith('data: ')) {
-              const dataStr = line.substring(6)
-              if (dataStr) {
-                try {
-                  const data = JSON.parse(dataStr)
-                  if (data.content) {
-                    fullContent += data.content
-                    onChunk?.(data.content)
+            for (const line of lines) {
+              const trimmedLine = line.trim()
+              if (trimmedLine.startsWith('data: ')) {
+                const dataStr = trimmedLine.substring(6)
+                if (dataStr) {
+                  try {
+                    const data = JSON.parse(dataStr)
+                    if (data.content) {
+                      fullContent += data.content
+                      onChunk?.(data.content)
+                    }
+                    if (data.done) {
+                      onDone?.()
+                    }
+                  } catch (error) {
+                    console.error('解析SSE数据失败:', error)
                   }
-                  if (data.done) {
-                    onDone?.()
-                  }
-                  processedLines.add(index)
-                  
-                  // 限制 processedLines 集合大小，防止内存泄漏
-                  if (processedLines.size > MAX_PROCESSED_LINES) {
-                    const oldestLine = Math.min(...processedLines)
-                    processedLines.delete(oldestLine)
-                  }
-                } catch (error) {
-                  console.error('解析SSE数据失败:', error)
                 }
               }
             }
-          })
+          }
         }
         
         xhr.onload = () => {
@@ -502,41 +531,37 @@ export const aiService = {
         xhr.responseType = 'text'
         
         let fullContent = ''
-        let processedLines = new Set<number>()
-        const MAX_PROCESSED_LINES = 1000
+        let buffer = ''
         
         xhr.onprogress = () => {
           const responseText = xhr.responseText
-          const lines = responseText.split('\n')
+          const newData = responseText.substring(buffer.length)
+          buffer = responseText
           
-          lines.forEach((line, index) => {
-            if (processedLines.has(index)) return
+          if (newData) {
+            const lines = newData.split('\n')
             
-            if (line.startsWith('data: ')) {
-              const dataStr = line.substring(6)
-              if (dataStr) {
-                try {
-                  const data = JSON.parse(dataStr)
-                  if (data.content) {
-                    fullContent += data.content
-                    onChunk?.(data.content)
+            for (const line of lines) {
+              const trimmedLine = line.trim()
+              if (trimmedLine.startsWith('data: ')) {
+                const dataStr = trimmedLine.substring(6)
+                if (dataStr) {
+                  try {
+                    const data = JSON.parse(dataStr)
+                    if (data.content) {
+                      fullContent += data.content
+                      onChunk?.(data.content)
+                    }
+                    if (data.done) {
+                      onDone?.()
+                    }
+                  } catch (error) {
+                    console.error('解析SSE数据失败:', error)
                   }
-                  if (data.done) {
-                    onDone?.()
-                  }
-                  processedLines.add(index)
-                  
-                  // 限制 processedLines 集合大小，防止内存泄漏
-                  if (processedLines.size > MAX_PROCESSED_LINES) {
-                    const oldestLine = Math.min(...processedLines)
-                    processedLines.delete(oldestLine)
-                  }
-                } catch (error) {
-                  console.error('解析SSE数据失败:', error)
                 }
               }
             }
-          })
+          }
         }
         
         xhr.onload = () => {
