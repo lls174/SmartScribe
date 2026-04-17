@@ -1,0 +1,33 @@
+.desktop-pet {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 420px;
+  height: 560px;
+  z-index: 1000;
+  touch-action: none;
+}
+
+.desktop-pet__frame {
+  width: 420px;
+  height: 560px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  position: relative;
+  overflow: visible;
+}
+
+.desktop-pet__live2d {
+  width: 420px;
+  height: 560px;
+  pointer-events: auto;
+}
+
+.desktop-pet__live2d canvas {
+  display: block;
+}
+

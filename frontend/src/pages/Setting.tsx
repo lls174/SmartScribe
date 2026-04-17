@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Button, Typography, Form, Select, Input, Row, Col, Space, message, Card, Alert } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Button, Typography, Form, Select, Input, Row, Col, Space, message, Card, Alert, Switch } from 'antd'
 import { KeyOutlined, ApiOutlined, ExperimentOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import '@styles/Setting.css'
@@ -66,6 +66,12 @@ const Setting: React.FC = () => {
   const [form] = Form.useForm()
   const [selectedPlatform, setSelectedPlatform] = useState(config.platform)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
+  const [desktopPetEnabled, setDesktopPetEnabled] = useState(true)
+
+  useEffect(() => {
+    const raw = localStorage.getItem('desktopPetEnabled')
+    setDesktopPetEnabled(raw === null ? true : raw === 'true')
+  }, [])
 
   const currentPlatformConfig = PLATFORM_CONFIG[selectedPlatform]
 
@@ -92,6 +98,15 @@ const Setting: React.FC = () => {
       message.error('配置保存失败')
     }
   }
+
+  const onToggleDesktopPet = (checked: boolean) => {
+    setDesktopPetEnabled(checked)
+    localStorage.setItem('desktopPetEnabled', String(checked))
+    window.dispatchEvent(new CustomEvent('desktopPetConfigChanged', { detail: { enabled: checked } }))
+    message.success(checked ? '桌宠已开启' : '桌宠已关闭')
+  }
+
+  // 桌宠模型已固定为组合模型，不再支持在设置页切换
 
   const getApiKeyPlaceholder = () => {
     if (selectedPlatform === 'custom') {
@@ -218,6 +233,21 @@ const Setting: React.FC = () => {
               <span className="setting-status-value">{config.customBaseURL}</span>
             </div>
           )}
+        </div>
+      </Card>
+
+      <Card className="setting-card" style={{ marginTop: '1.5rem' }}>
+        <Title level={5} className="setting-section-title">体验功能</Title>
+        <div className="setting-status">
+          <div className="setting-status-item" style={{ alignItems: 'center' }}>
+            <span className="setting-status-label">桌宠（悬浮助手）:</span>
+            <span className="setting-status-value">
+              <Switch checked={desktopPetEnabled} onChange={onToggleDesktopPet} />
+            </span>
+          </div>
+          <Paragraph style={{ marginTop: 12, marginBottom: 0, color: '#a5b4fc' }}>
+            桌宠会常驻在页面右下角，可拖拽移动。当前使用 Live2D 模型：`public/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json`
+          </Paragraph>
         </div>
       </Card>
     </div>

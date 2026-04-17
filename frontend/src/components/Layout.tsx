@@ -1,6 +1,7 @@
 import React from 'react'
 import { Layout as AntLayout } from 'antd'
 import Header from './Header'
+import DesktopPet from '@components/DesktopPet'
 
 const { Content, Footer } = AntLayout
 
@@ -17,6 +18,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       background: 'transparent'
     }}>
       <Header />
+      <DesktopPet />
       <Content style={{ 
         background: 'transparent',
         flex: 1
