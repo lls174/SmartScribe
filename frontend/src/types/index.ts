@@ -24,6 +24,23 @@ export interface Chapter {
   updatedAt: string
 }
 
+export interface DeletedNovel {
+  id: number
+  name: string
+  description?: string
+  deletedAt: string
+}
+
+export interface DeletedChapter {
+  id: number
+  title: string
+  novelId: number
+  novel: {
+    name: string
+  }
+  deletedAt: string
+}
+
 export interface Feedback {
   id: number
   userId: number

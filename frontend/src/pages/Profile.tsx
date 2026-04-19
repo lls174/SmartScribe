@@ -16,7 +16,7 @@ interface UserInfo {
 
 const Profile: React.FC = () => {
   const navigate = useNavigate()
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [infoForm] = Form.useForm()

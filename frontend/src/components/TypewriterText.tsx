@@ -16,15 +16,11 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
   cursorChar = '|'
 }) => {
   const [displayText, setDisplayText] = useState('')
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isComplete, setIsComplete] = useState(false)
   const previousTextRef = useRef('')
 
   useEffect(() => {
     if (!text) {
       setDisplayText('')
-      setCurrentIndex(0)
-      setIsComplete(false)
       previousTextRef.current = ''
       return
     }
@@ -42,7 +38,6 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
           } else {
             clearInterval(interval)
             previousTextRef.current = text
-            setIsComplete(true)
             onComplete?.()
           }
         }, speed)
@@ -62,7 +57,6 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
           charIndex++
         } else {
           clearInterval(interval)
-          setIsComplete(true)
           onComplete?.()
         }
       }, speed)

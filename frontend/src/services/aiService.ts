@@ -1,4 +1,4 @@
-import api from './api'
+import api, { buildApiUrl } from './api'
 
 let csrfToken: string | null = null
 
@@ -149,7 +149,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         createSSERequest(
-          '/api/ai/generate',
+          buildApiUrl('/ai/generate'),
           {
             prompt,
             chapterTitle,
@@ -171,7 +171,7 @@ export const aiService = {
           (data) => onDone?.(data.plot),
           resolve,
           reject,
-          csrfToken
+          csrfToken ?? undefined
         )
       }).catch(() => {
         reject(new Error('获取CSRF Token失败'))
@@ -195,7 +195,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         createSSERequest(
-          '/api/ai/continue',
+          buildApiUrl('/ai/continue'),
           {
             lastContent,
             lastPlot,
@@ -213,7 +213,7 @@ export const aiService = {
           (data) => onDone?.(data.plot),
           resolve,
           reject,
-          csrfToken
+          csrfToken ?? undefined
         )
       }).catch(() => {
         reject(new Error('获取CSRF Token失败'))
@@ -235,7 +235,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/ai/polish')
+        xhr.open('POST', buildApiUrl('/ai/polish'))
         xhr.setRequestHeader('Content-Type', 'application/json')
         
         const token = localStorage.getItem('token')
@@ -330,7 +330,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/ai/setting')
+        xhr.open('POST', buildApiUrl('/ai/setting'))
         xhr.setRequestHeader('Content-Type', 'application/json')
         
         const token = localStorage.getItem('token')
@@ -423,7 +423,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/ai/outline')
+        xhr.open('POST', buildApiUrl('/ai/outline'))
         xhr.setRequestHeader('Content-Type', 'application/json')
         
         const token = localStorage.getItem('token')
@@ -516,7 +516,7 @@ export const aiService = {
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/ai/creative')
+        xhr.open('POST', buildApiUrl('/ai/creative'))
         xhr.setRequestHeader('Content-Type', 'application/json')
         
         const token = localStorage.getItem('token')

@@ -1,5 +1,5 @@
-﻿﻿import api from './api'
-import type { Novel, Chapter } from '@types/index'
+﻿import api from './api'
+import type { Chapter, DeletedChapter, DeletedNovel, Novel } from '@app-types/index'
 
 export const novelService = {
   // 获取小说列表
@@ -20,7 +20,7 @@ export const novelService = {
   },
 
   // 获取已删除的小说列表
-  getDeletedNovels: async (): Promise<Novel[]> => {
+  getDeletedNovels: async (): Promise<DeletedNovel[]> => {
     const response = await api.get('/novel/trash/novels')
     return response.data
   },
@@ -53,7 +53,7 @@ export const novelService = {
   },
 
   // 获取已删除的章节列表
-  getDeletedChapters: async (): Promise<Chapter[]> => {
+  getDeletedChapters: async (): Promise<DeletedChapter[]> => {
     const response = await api.get('/novel/trash/chapters')
     return response.data
   },

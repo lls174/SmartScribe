@@ -11,16 +11,37 @@ const sequelize = new Sequelize({
   logging: process.env.NODE_ENV === 'production' ? false : console.log
 })
 
-// 测试数据库连接
-const testConnection = async () => {
+const databaseState = {
+  connected: false,
+  lastCheckedAt: null,
+  lastError: null
+}
+
+const setDatabaseState = (connected, error = null) => {
+  databaseState.connected = connected
+  databaseState.lastCheckedAt = new Date().toISOString()
+  databaseState.lastError = error ? error.message : null
+}
+
+const connectDatabase = async ({ logSuccess = true, logFailure = true } = {}) => {
   try {
     await sequelize.authenticate()
-    console.log('数据库连接成功')
+    setDatabaseState(true)
+    if (logSuccess) {
+      console.log('数据库连接成功')
+    }
+    return true
   } catch (error) {
-    console.error('数据库连接失败:', error)
+    setDatabaseState(false, error)
+    if (logFailure) {
+      console.error('数据库连接失败:', error)
+    }
+    return false
   }
 }
 
-testConnection()
+const getDatabaseStatus = () => ({ ...databaseState })
 
 module.exports = sequelize
+module.exports.connectDatabase = connectDatabase
+module.exports.getDatabaseStatus = getDatabaseStatus

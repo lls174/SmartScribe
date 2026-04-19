@@ -1,5 +1,5 @@
 import api from './api'
-import type { Feedback } from '@types/index'
+import type { Feedback } from '@app-types/index'
 
 export const feedbackService = {
   // 提交反馈

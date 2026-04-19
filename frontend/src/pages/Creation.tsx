@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Button, Typography, Space, Row, Col, Card, List, Modal, Form, Input, message, Popconfirm } from 'antd'
-import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { Button, Typography, Space, Card, List, Modal, Form, Input, message, Popconfirm } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { novelService } from '@services/novelService'
 import { useAuth } from '@hooks/useAuth'

@@ -5,24 +5,8 @@ import { RollbackOutlined, DeleteOutlined, BookOutlined, FileTextOutlined } from
 import { novelService } from '@services/novelService'
 import { useAuth } from '@hooks/useAuth'
 import Loading from '@components/Loading'
+import type { DeletedChapter, DeletedNovel } from '@app-types/index'
 import '@styles/Trash.css'
-
-interface DeletedNovel {
-  id: number
-  name: string
-  description?: string
-  deletedAt: string
-}
-
-interface DeletedChapter {
-  id: number
-  title: string
-  novelId: number
-  novel: {
-    name: string
-  }
-  deletedAt: string
-}
 
 const Trash: React.FC = () => {
   const navigate = useNavigate()
@@ -174,7 +158,7 @@ const Trash: React.FC = () => {
       title: '所属小说',
       dataIndex: ['novel', 'name'],
       key: 'novelName',
-      render: (text: string, record: DeletedChapter) => (
+      render: (text: string) => (
         <Space>
           <BookOutlined />
           {text}

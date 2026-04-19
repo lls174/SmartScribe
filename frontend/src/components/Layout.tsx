@@ -29,15 +29,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         textAlign: 'center',
         background: 'rgba(26, 31, 58, 0.6)',
         color: 'var(--text-secondary)',
-        borderTop: '1px solid rgba(59, 130, 246, 0.2)'
+        borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+        paddingBottom: 'calc(24px + env(safe-area-inset-bottom))'
       }}>
-        SmartScribe 写作助手 ©2024 个人网站
+        SmartScribe 写作助手 ©2026 个人网站
         <br />
         网站为个人学习 / 演示 / 自用
         <br />
-        <a href="http://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer">
+{/*         <a href="http://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer">
           京ICP备12345678号
-        </a>
+        </a> */}
       </Footer>
     </AntLayout>
   )

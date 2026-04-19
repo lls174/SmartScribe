@@ -4,7 +4,6 @@ import { Application, DisplayObject, Ticker, UPDATE_PRIORITY } from 'pixi.js'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 
 const LS_KEY_ENABLED = 'desktopPetEnabled'
-const LS_KEY_POS = 'desktopPetPosition'
 
 // 兼容兜底：某些 Pixi 事件系统会调用 currentTarget.isInteractive()
 // 如果 Live2D 对象链上缺少该方法会直接抛错，导致点击/动作逻辑被打断。
@@ -36,32 +35,6 @@ try {
   }
 } catch {
   // ignore
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n))
-}
-
-function getDefaultPos() {
-  const w = window.innerWidth
-  const h = window.innerHeight
-  return { x: Math.max(16, w - 420), y: Math.max(120, h - 560) }
-}
-
-function readSavedPos(): { x: number; y: number } | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY_POS)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (typeof parsed?.x !== 'number' || typeof parsed?.y !== 'number') return null
-    return { x: parsed.x, y: parsed.y }
-  } catch {
-    return null
-  }
-}
-
-function savePos(pos: { x: number; y: number }) {
-  localStorage.setItem(LS_KEY_POS, JSON.stringify(pos))
 }
 
 function isEnabledByDefault() {
@@ -411,53 +384,37 @@ export default function DesktopPet() {
         j.x *= 0.972
         j.y *= 0.972
 
-        // 平滑跟随（阻尼更强，减少“死板追踪”）
-        // 响应更快一些（更显眼）
-        const lerp = 1 - Math.pow(0.00008, Math.min(1, deltaMS / 16.67))
+        // 平滑跟随：阻尼适中，既不"死板追踪"，也不"拖泥带水"
+        const lerp = 1 - Math.pow(0.0008, Math.min(1, deltaMS / 16.67))
         lookCurrentRef.current.x += (lookTargetRef.current.x - lookCurrentRef.current.x) * lerp
         lookCurrentRef.current.y += (lookTargetRef.current.y - lookCurrentRef.current.y) * lerp
 
         const x = Math.max(-1, Math.min(1, lookCurrentRef.current.x + j.x))
         const y = Math.max(-1, Math.min(1, lookCurrentRef.current.y + j.y))
 
-        // 目标：motion 正常播放，同时叠加鼠标跟随
-        // 做法：在“动作更新后的当前值”基础上，加一个偏移再写回（本帧最后执行）
+        // 目标：动作（motion）为主，跟随为辅，且整体依然可见。
+        // 做法：在“动作更新后的当前值”之上，按权重叠加偏移再写回——
+        // - 眼球权重最高：最灵动、最明显，几乎不受动作影响；
+        // - 头部权重中等：协同动作，轻微偏转即可；
+        // - 歪头权重最低：仅做点缀，避免“被拽”的不自然感。
         const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-        const setAdd = (id: string, delta: number, lo: number, hi: number) => {
+        const blend = (id: string, delta: number, weight: number, lo: number, hi: number) => {
           if (setParam) {
             const base = getParam ? getParam(id) : 0
-            setParam(id, clamp(base + delta, lo, hi))
+            setParam(id, clamp(base + delta * weight, lo, hi))
             return
           }
-          // 回退：叠加式
-          addParam?.(id, delta, 1.0)
+          addParam?.(id, delta * weight, weight)
         }
 
-        // 眼球：更明显（仍限制在 [-1, 1]）
-        setAdd('ParamEyeBallX', x * 2.0, -1, 1)
-        setAdd('ParamEyeBallY', y * 2.0, -1, 1)
+        blend('ParamEyeBallX', x * 1.35, 0.95, -1, 1)
+        blend('ParamEyeBallY', y * 1.35, 0.95, -1, 1)
 
-        // 头部：在 motion 基础上加偏移（角度范围经验值）
-        setAdd('ParamAngleX', x * 38, -30, 30)
-        setAdd('ParamAngleY', y * 28, -30, 30)
-        setAdd('ParamAngleZ', x * -12, -30, 30)
+        blend('ParamAngleX', x * 28, 0.6, -30, 30)
+        blend('ParamAngleY', y * 20, 0.55, -30, 30)
+        blend('ParamAngleZ', x * -8, 0.35, -30, 30)
 
-        // 回退：叠加式
-        if (addParam) {
-          try {
-            addParam('ParamEyeBallX', x * 1.25, 1.0)
-            addParam('ParamEyeBallY', y * 1.25, 1.0)
-          } catch {
-            // ignore
-          }
-          try {
-            addParam('ParamAngleX', x * 22, 0.55)
-            addParam('ParamAngleY', y * 16, 0.55)
-            addParam('ParamAngleZ', x * -6, 0.25)
-          } catch {
-            // ignore
-          }
-        }
+        blend('ParamBodyAngleX', x * 10, 0.5, -10, 10)
       }
 
       // 用 shared ticker，并设为更低优先级，确保在 Live2D 自身更新之后再应用视线（减少“被动画干扰”）

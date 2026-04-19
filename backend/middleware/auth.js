@@ -1,5 +1,13 @@
 const jwt = require('jsonwebtoken')
 
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET 未配置')
+  }
+
+  return process.env.JWT_SECRET
+}
+
 /**
  * 验证JWT token的中间件
  * @param {Object} req - 请求对象
@@ -23,7 +31,7 @@ const verifyToken = (req, res, next) => {
     }
     
     // 实际环境下，验证JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const decoded = jwt.verify(token, getJwtSecret())
     req.userId = decoded.userId
     next()
   } catch (error) {

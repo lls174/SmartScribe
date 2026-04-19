@@ -152,7 +152,8 @@ const Header: React.FC = () => {
           backdrop-filter: blur(10px);
           border-bottom: 1px solid rgba(59, 130, 246, 0.3);
           padding: 0;
-          height: 64px;
+          padding-top: env(safe-area-inset-top);
+          height: calc(64px + env(safe-area-inset-top));
           line-height: 64px;
           position: sticky;
           top: 0;
@@ -310,7 +311,7 @@ const Header: React.FC = () => {
         /* 响应式布局 */
         @media (max-width: 768px) {
           .sci-fi-header {
-            height: 56px;
+            height: calc(56px + env(safe-area-inset-top));
             line-height: 56px;
           }
 

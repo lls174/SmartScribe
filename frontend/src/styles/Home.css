@@ -4,6 +4,7 @@
   margin: 0 auto;
   position: relative;
   height: calc(100vh - 65px - 108px);
+  height: calc(100dvh - 65px - 108px);
   overflow: hidden;
 }
 
@@ -33,6 +34,7 @@
 
 .home-hero {
   height: calc(100vh - 65px - 108px);
+  height: calc(100dvh - 65px - 108px);
   display: flex;
   align-items: center;
   position: relative;
@@ -272,10 +274,12 @@
   .home-container {
     padding: 1rem;
     height: calc(100vh - 56px - 100px);
+    height: calc(100dvh - 56px - 100px);
   }
   
   .home-hero {
     height: calc(100vh - 56px - 100px);
+    height: calc(100dvh - 56px - 100px);
   }
   
   .home-title {
@@ -325,10 +329,12 @@
   .home-container {
     padding: 0.8rem;
     height: calc(100vh - 56px - 90px);
+    height: calc(100dvh - 56px - 90px);
   }
   
   .home-hero {
     height: calc(100vh - 56px - 90px);
+    height: calc(100dvh - 56px - 90px);
   }
   
   .home-title {

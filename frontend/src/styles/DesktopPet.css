@@ -1,6 +1,6 @@
 .desktop-pet {
   position: fixed;
-  right: 16px;
+  right: -120px;
   bottom: 16px;
   width: 420px;
   height: 560px;
@@ -29,5 +29,12 @@
 
 .desktop-pet__live2d canvas {
   display: block;
+}
+
+/* 移动端隐藏：避免遮挡内容/影响滚动与交互 */
+@media (max-width: 768px) {
+  .desktop-pet {
+    display: none;
+  }
 }
 

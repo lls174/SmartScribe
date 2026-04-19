@@ -1,6 +1,7 @@
 .login-container,
 .register-container {
   min-height: calc(100vh - 65px);
+  min-height: calc(100dvh - 65px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,6 +75,7 @@
   .login-container,
   .register-container {
     min-height: calc(100vh - 56px);
+    min-height: calc(100dvh - 56px);
     padding: 1rem;
   }
   

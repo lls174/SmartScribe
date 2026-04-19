@@ -9,6 +9,14 @@ const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const { verifyToken } = require('../middleware/auth')
 
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET 未配置')
+  }
+
+  return process.env.JWT_SECRET
+}
+
 /**
  * 验证请求参数的错误处理
  * @param {Object} errors - 验证结果对象
@@ -115,7 +123,7 @@ router.post('/login',
       }
 
       // 生成token
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+      const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
       res.json({ token, userId: user.id })
     } catch (error) {
       handleServerError(res, error, '登录失败')

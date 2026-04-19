@@ -1,7 +1,31 @@
 import axios from 'axios'
 
+const ensureLeadingSlash = (value: string) => value.startsWith('/') ? value : `/${value}`
+
+const normalizeAppBaseUrl = (value: string | undefined) => {
+  if (!value) {
+    return '/'
+  }
+
+  const normalized = ensureLeadingSlash(value)
+  return normalized.endsWith('/') ? normalized : `${normalized}/`
+}
+
+const normalizeApiBaseUrl = (value: string | undefined) => {
+  const normalized = ensureLeadingSlash(value || '/api')
+  return normalized !== '/' && normalized.endsWith('/') ? normalized.slice(0, -1) : normalized
+}
+
+export const APP_BASE_URL = normalizeAppBaseUrl(import.meta.env.BASE_URL)
+export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
+export const buildApiUrl = (path: string) => `${API_BASE_URL}${ensureLeadingSlash(path)}`
+export const buildAppUrl = (path: string) => {
+  const base = APP_BASE_URL === '/' ? '' : APP_BASE_URL.slice(0, -1)
+  return path === '/' ? (base || '/') : `${base}${ensureLeadingSlash(path)}`
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -77,7 +101,7 @@ api.interceptors.response.use(
     
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      window.location.href = buildAppUrl('/login')
     }
     return Promise.reject(error)
   }

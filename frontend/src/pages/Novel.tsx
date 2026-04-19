@@ -5,7 +5,7 @@ import type { MenuProps } from 'antd'
 
 const { Option } = Select
 import { useParams, useNavigate } from 'react-router-dom'
-import { Editor, EditorState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js'
+import { Editor, EditorState, RichUtils, convertFromRaw } from 'draft-js'
 import 'draft-js/dist/Draft.css'
 import { aiService } from '@services/aiService'
 import type { NovelContext } from '@services/aiService'
@@ -13,7 +13,7 @@ import { novelService } from '@services/novelService'
 import { useAuth } from '@hooks/useAuth'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import Loading from '@components/Loading'
-import type { Chapter } from '@types/index'
+import type { Chapter } from '@app-types/index'
 import '@styles/Novel.css'
 
 const { Title } = Typography
@@ -287,7 +287,7 @@ const Novel: React.FC = () => {
     setGeneratedContent('')
     try {
       const contentState = editorState.getCurrentContent()
-      const contentText = contentState.getPlainText()
+      void contentState
 
       let result = { content: '', plot: '' }
       const ctx = buildNovelContext()
@@ -302,8 +302,7 @@ const Novel: React.FC = () => {
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
-          (plot) => {
-          },
+          (_plot) => { void _plot },
           config,
           ctx,
           {
@@ -324,8 +323,7 @@ const Novel: React.FC = () => {
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
-          (plot) => {
-          },
+          (_plot) => { void _plot },
           config,
           ctx,
           continueWordCount
@@ -374,11 +372,11 @@ const Novel: React.FC = () => {
       console.error('生成失败:', error)
       // 显示更具体的错误信息
       let errorMessage = '生成失败'
-      if (error.message) {
+      if (error instanceof Error && error.message) {
         errorMessage += '：' + error.message
       }
       // 特别处理API密钥未配置的情况
-      if (error.message && (error.message.includes('API密钥未配置') || error.message.includes('API key'))) {
+      if (error instanceof Error && (error.message.includes('API密钥未配置') || error.message.includes('API key'))) {
         errorMessage = 'AI API密钥未配置，请在后端.env文件中配置API密钥后重试'
       }
       message.error(errorMessage)
