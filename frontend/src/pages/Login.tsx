@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     setError('')
     try {
       const response = await userService.login(values.username, values.password)
-      login(response.token)
+      await login(response.token, response.user)
       navigate('/creation')
     } catch (err: any) {
       setError(err.response?.data?.message || '登录失败')

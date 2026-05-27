@@ -106,12 +106,14 @@ const aiLimiter = rateLimit({
 })
 
 // 登录注册接口频率限制
+const isProduction = process.env.NODE_ENV === 'production'
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
-  max: 5, // 每个 IP 在 15 分钟内最多 5 个登录/注册请求
+  max: isProduction ? 5 : 50, // 本地开发放宽，避免热更新/预检误伤
   message: { message: '登录尝试次数过多，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
 })
 
 // 应用全局频率限制
@@ -134,6 +136,7 @@ const novelRoutes = require('./routes/novel')
 const aiRoutes = require('./routes/ai')
 const feedbackRoutes = require('./routes/feedback')
 const creativeRoutes = require('./routes/creative')
+const adminRoutes = require('./routes/admin')
 
 // 应用 CSRF 保护到所有需要保护的路由
 app.use('/api/user', csrfProtection)
@@ -141,6 +144,7 @@ app.use('/api/novel', csrfProtection)
 app.use('/api/ai', csrfProtection)
 app.use('/api/feedback', csrfProtection)
 app.use('/api/creative', csrfProtection)
+app.use('/api/admin', csrfProtection)
 
 // 应用路由和特定的频率限制
 app.use('/api/user', authLimiter, userRoutes)
@@ -148,6 +152,7 @@ app.use('/api/novel', novelRoutes)
 app.use('/api/ai', aiLimiter, aiRoutes)
 app.use('/api/feedback', feedbackRoutes)
 app.use('/api/creative', creativeRoutes)
+app.use('/api/admin', adminRoutes)
 
 // 获取 CSRF Token 的接口（不需要 CSRF 保护）
 app.get('/api/csrf-token', csrfProtection, (req, res) => {

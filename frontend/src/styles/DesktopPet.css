@@ -1,4 +1,4 @@
-.desktop-pet {
+﻿.desktop-pet {
   position: fixed;
   right: -120px;
   bottom: 16px;
@@ -31,10 +31,34 @@
   display: block;
 }
 
+.desktop-pet__close {
+  position: absolute;
+  top: 10px;
+  /* .desktop-pet 右侧有 -120px 偏移，按钮需要避开屏幕外区域 */
+  right: 140px;
+  z-index: 10000;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(20, 20, 20, 0.55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.desktop-pet__close:hover {
+  background: rgba(20, 20, 20, 0.7);
+}
+
 /* 移动端隐藏：避免遮挡内容/影响滚动与交互 */
 @media (max-width: 768px) {
   .desktop-pet {
     display: none;
   }
 }
+
+
 

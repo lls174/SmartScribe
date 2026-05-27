@@ -111,9 +111,17 @@
   border-color: rgba(59, 130, 246, 0.3) !important;
 }
 
+.profile-shortcut-item--danger {
+  border-color: color-mix(in srgb, var(--error-color) 35%, transparent) !important;
+  color: var(--error-color) !important;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .profile-container {
-    padding: 1rem;
+    padding: 1rem 1rem 5rem;
   }
 
   .profile-title {

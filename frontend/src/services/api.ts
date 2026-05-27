@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const ensureLeadingSlash = (value: string) => value.startsWith('/') ? value : `/${value}`
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
+const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `/${value}`)
 
 const normalizeAppBaseUrl = (value: string | undefined) => {
   if (!value) {
@@ -12,13 +13,23 @@ const normalizeAppBaseUrl = (value: string | undefined) => {
 }
 
 const normalizeApiBaseUrl = (value: string | undefined) => {
-  const normalized = ensureLeadingSlash(value || '/api')
+  const raw = value || '/api'
+  if (isAbsoluteUrl(raw)) {
+    return raw.endsWith('/') ? raw.slice(0, -1) : raw
+  }
+
+  const normalized = ensureLeadingSlash(raw)
   return normalized !== '/' && normalized.endsWith('/') ? normalized.slice(0, -1) : normalized
 }
 
 export const APP_BASE_URL = normalizeAppBaseUrl(import.meta.env.BASE_URL)
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
-export const buildApiUrl = (path: string) => `${API_BASE_URL}${ensureLeadingSlash(path)}`
+export const buildApiUrl = (path: string) => {
+  if (isAbsoluteUrl(API_BASE_URL)) {
+    return `${API_BASE_URL}${ensureLeadingSlash(path)}`
+  }
+  return `${API_BASE_URL}${ensureLeadingSlash(path)}`
+}
 export const buildAppUrl = (path: string) => {
   const base = APP_BASE_URL === '/' ? '' : APP_BASE_URL.slice(0, -1)
   return path === '/' ? (base || '/') : `${base}${ensureLeadingSlash(path)}`

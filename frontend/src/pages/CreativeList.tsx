@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Button, Typography, Card, Table, message, Space, Modal, Form, Input, Select, Tag, Popconfirm } from 'antd'
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, EyeOutlined, FireOutlined, AppstoreOutlined, BulbOutlined } from '@ant-design/icons'
 import { creativeApi } from '@services/api'
 import '@styles/CreativeList.css'
 
@@ -23,6 +23,13 @@ const CreativeList: React.FC = () => {
     { value: 'theme', label: '热门题材' },
     { value: 'element', label: '创意元素' }
   ]
+
+  const creativeTypeIcon = (type: string) => {
+    if (type === 'trend') return <FireOutlined />
+    if (type === 'theme') return <AppstoreOutlined />
+    if (type === 'element') return <BulbOutlined />
+    return null
+  }
 
   const genres = [
     { value: 'all', label: '全题材' },
@@ -105,7 +112,12 @@ const CreativeList: React.FC = () => {
       render: (type: string) => {
         const typeInfo = creativeTypes.find(t => t.value === type)
         return typeInfo ? (
-          <Tag color="blue">{typeInfo.label}</Tag>
+          <Tag color="blue">
+            <Space size={6}>
+              {creativeTypeIcon(type)}
+              <span>{typeInfo.label}</span>
+            </Space>
+          </Tag>
         ) : (
           <Tag color="default">{type}</Tag>
         )

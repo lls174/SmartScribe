@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Button, Typography, Space, Row, Col, Form, Input, Modal, message, Select, Dropdown } from 'antd'
-import { DragOutlined, DownloadOutlined } from '@ant-design/icons'
+import { Button, Typography, Space, Row, Col, Form, Input, Modal, message, Select, Dropdown, Card, Tabs, List, Tag, Switch, InputNumber, Collapse } from 'antd'
+import { DragOutlined, DownloadOutlined, HistoryOutlined, BranchesOutlined, MoreOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
 const { Option } = Select
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Editor, EditorState, RichUtils, convertFromRaw } from 'draft-js'
 import 'draft-js/dist/Draft.css'
 import { aiService } from '@services/aiService'
 import type { NovelContext } from '@services/aiService'
 import { novelService } from '@services/novelService'
+import { PROMPT_TEMPLATES, PROMPT_TEMPLATES_UPDATED_AT, type PromptTemplate } from '@/data/promptTemplates'
 import { useAuth } from '@hooks/useAuth'
+import { useMediaQuery } from '@hooks/useMediaQuery'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import Loading from '@components/Loading'
-import type { Chapter } from '@app-types/index'
+import type { CharacterCard, Chapter, NovelSetting } from '@app-types/index'
 import '@styles/Novel.css'
 
 const { Title } = Typography
@@ -21,6 +23,7 @@ const { Title } = Typography
 const Novel: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const { config } = useAIConfig()
   const [editorState, setEditorState] = useState(() => EditorState.createEmpty())
@@ -37,6 +40,7 @@ const Novel: React.FC = () => {
   const [characters, setCharacters] = useState('')
   const [other, setOther] = useState('')
   const [wordCount, setWordCount] = useState('2000')
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>()
   const [continueWordCount, setContinueWordCount] = useState('2000')
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [pageLoading, setPageLoading] = useState(true)
@@ -46,10 +50,20 @@ const Novel: React.FC = () => {
   const [editingChapterId, setEditingChapterId] = useState<number | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [draggingChapterId, setDraggingChapterId] = useState<number | null>(null)
+  const [characterCards, setCharacterCards] = useState<CharacterCard[]>([])
+  const [novelSetting, setNovelSetting] = useState<NovelSetting | null>(null)
+  const [characterModalVisible, setCharacterModalVisible] = useState(false)
+  const [editingCharacter, setEditingCharacter] = useState<CharacterCard | null>(null)
+  const [memoryLoading, setMemoryLoading] = useState(false)
+  const [characterForm] = Form.useForm()
+  const [settingForm] = Form.useForm()
   const editorRef = useRef<Editor>(null)
+  const appliedTemplateRef = useRef<string | null>(null)
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   const buildNovelContext = (): NovelContext => {
     return {
+      novelId: id ? Number(id) : undefined,
       novelMeta: {
         name: undefined,
         genre: genre === '自定义' ? customGenre : genre,
@@ -74,8 +88,28 @@ const Novel: React.FC = () => {
     }
     if (id) {
       fetchChapters()
+      fetchNovelMemory()
     }
   }, [id, isAuthenticated, authLoading, navigate])
+
+  const fetchNovelMemory = async () => {
+    if (!id) return
+    try {
+      setMemoryLoading(true)
+      const [cards, setting] = await Promise.all([
+        novelService.getCharacterCards(Number(id)),
+        novelService.getNovelSetting(Number(id))
+      ])
+      setCharacterCards(cards)
+      setNovelSetting(setting)
+      settingForm.setFieldsValue(setting)
+    } catch (error) {
+      console.error('获取小说记忆失败:', error)
+      message.error('获取人物卡/内容设定失败')
+    } finally {
+      setMemoryLoading(false)
+    }
+  }
 
   const fetchChapters = async () => {
     try {
@@ -279,6 +313,124 @@ const Novel: React.FC = () => {
     }
   ]
 
+  const openCreateCharacter = () => {
+    setEditingCharacter(null)
+    characterForm.resetFields()
+    characterForm.setFieldsValue({ priority: 5, isActive: true })
+    setCharacterModalVisible(true)
+  }
+
+  const openEditCharacter = (card: CharacterCard) => {
+    setEditingCharacter(card)
+    characterForm.setFieldsValue(card)
+    setCharacterModalVisible(true)
+  }
+
+  const handleSaveCharacter = async () => {
+    if (!id) return
+    try {
+      const values = await characterForm.validateFields()
+      if (editingCharacter) {
+        await novelService.updateCharacterCard(Number(id), editingCharacter.id, values)
+        message.success('人物卡已更新')
+      } else {
+        await novelService.createCharacterCard(Number(id), values)
+        message.success('人物卡已创建')
+      }
+      setCharacterModalVisible(false)
+      await fetchNovelMemory()
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message || '保存人物卡失败')
+      }
+    }
+  }
+
+  const handleDeleteCharacter = (card: CharacterCard) => {
+    if (!id) return
+    Modal.confirm({
+      title: `删除人物卡：${card.name}`,
+      content: '删除后生成时将不再注入该人物设定。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await novelService.deleteCharacterCard(Number(id), card.id)
+        message.success('人物卡已删除')
+        await fetchNovelMemory()
+      }
+    })
+  }
+
+  const handleToggleCharacter = async (card: CharacterCard, isActive: boolean) => {
+    if (!id) return
+    await novelService.updateCharacterCard(Number(id), card.id, { isActive })
+    await fetchNovelMemory()
+  }
+
+  const handleSaveSetting = async () => {
+    if (!id) return
+    try {
+      const values = await settingForm.validateFields()
+      const setting = await novelService.updateNovelSetting(Number(id), values)
+      setNovelSetting(setting)
+      message.success('内容设定已保存')
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message || '保存内容设定失败')
+      }
+    }
+  }
+
+  const applyPromptTemplate = (template: PromptTemplate) => {
+    setSelectedTemplateId(template.id)
+
+    const builtInGenres = ['玄幻', '仙侠', '都市', '历史', '科幻', '言情']
+    if (builtInGenres.includes(template.genre)) {
+      setGenre(template.genre)
+      setCustomGenre('')
+    } else {
+      setGenre('自定义')
+      setCustomGenre(template.genre)
+    }
+
+    const builtInStyles = ['正常', '浪漫', '英雄主义', '神秘', '幽默', '悲剧']
+    if (builtInStyles.includes(template.style)) {
+      setStyle(template.style)
+      setCustomStyle('')
+    } else {
+      setStyle('自定义')
+      setCustomStyle(template.style)
+    }
+
+    setCorePlot(template.corePlot)
+    setCharacters(template.characters)
+    setOther(`${template.other}\n\n模板说明：${template.reason}`)
+    setWordCount(template.wordCount)
+    message.success(`已应用模板：${template.title}`)
+  }
+
+  useEffect(() => {
+    const state = location.state as { promptTemplateId?: string; openGenerateModal?: boolean } | null
+    if (!state?.promptTemplateId || appliedTemplateRef.current === state.promptTemplateId) {
+      return
+    }
+
+    const template = PROMPT_TEMPLATES.find((item) => item.id === state.promptTemplateId)
+    if (!template) {
+      return
+    }
+
+    appliedTemplateRef.current = state.promptTemplateId
+    applyPromptTemplate(template)
+    if (state.openGenerateModal) {
+      setActionType('generate')
+      setModalVisible(true)
+    }
+
+    navigate(location.pathname, { replace: true })
+  }, [location.pathname, location.state, navigate])
+
   const handleGenerate = async () => {
     // 先关闭弹窗
     setModalVisible(false)
@@ -329,8 +481,16 @@ const Novel: React.FC = () => {
           continueWordCount
         )
       } else {
+        if (!currentChapter) {
+          message.warning('请先选择一个章节')
+          return
+        }
+
+        const beforeContent = currentChapter.content || ''
+        const beforePlot = currentChapter.plot || ''
+
         const polishResult = await aiService.polishContent(
-          currentChapter?.content || '', 
+          beforeContent,
           customPrompt,
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
@@ -338,8 +498,14 @@ const Novel: React.FC = () => {
           () => {
           },
           config,
-          ctx
+          ctx,
+          {
+            beforeContent,
+            beforePlot,
+            chapterTitle: currentChapter.title
+          }
         )
+
         result = { content: polishResult, plot: currentChapter?.plot || '' }
       }
 
@@ -366,8 +532,27 @@ const Novel: React.FC = () => {
       )
       setEditorState(newContentState)
       
-      // 生成完成后自动保存内容
-      await handleSaveChapter(result.content, result.plot)
+      // 生成完成后保存
+      if (actionType === 'polish') {
+        if (!currentChapter) {
+          message.warning('请先选择一个章节')
+          return
+        }
+        const updated = await novelService.updateChapterContent(currentChapter.id, result.content, result.plot)
+        message.success('润色已覆盖原章节（旧内容可在生成历史中查看）')
+        // 润色后自动创建一个版本快照，方便随时切换/回滚
+        try {
+          const label = `自动版本-润色-${currentChapter.title || '未命名章节'}-${new Date().toLocaleString()}`
+          await novelService.createVersion(Number(id), label)
+        } catch (e) {
+          // 不阻塞润色主流程（常见原因：未初始化版本表）
+          console.warn('润色后自动创建版本失败:', e)
+        }
+        await fetchChapters()
+        loadChapter(updated)
+      } else {
+        await handleSaveChapter(result.content, result.plot)
+      }
     } catch (error) {
       console.error('生成失败:', error)
       // 显示更具体的错误信息
@@ -420,15 +605,307 @@ const Novel: React.FC = () => {
     }
   }
 
+  const openGenerateModal = () => {
+    setActionType('generate')
+    setModalVisible(true)
+  }
+
+  const openContinueModal = () => {
+    if (!currentChapter) {
+      message.warning('请先选择一个章节')
+      return
+    }
+    if (!currentChapter.content?.trim()) {
+      message.warning('所选章节内容为空，无法续写')
+      return
+    }
+    setActionType('continue')
+    setModalVisible(true)
+  }
+
+  const openPolishModal = () => {
+    if (!currentChapter) {
+      message.warning('请先选择一个章节')
+      return
+    }
+    setActionType('polish')
+    setModalVisible(true)
+  }
+
+  const mobileMoreMenuItems: MenuProps['items'] = [
+    {
+      key: 'versions',
+      icon: <BranchesOutlined />,
+      label: '版本管理',
+      onClick: () => navigate(`/novel/${id}/versions`)
+    },
+    {
+      key: 'history',
+      icon: <HistoryOutlined />,
+      label: '生成历史',
+      onClick: () => navigate(`/novel/${id}/history`)
+    },
+    {
+      key: 'export',
+      icon: <DownloadOutlined />,
+      label: '导出小说',
+      children: exportMenuItems
+    }
+  ]
+
   if (pageLoading) {
     return <Loading />
   }
 
+  const memoryTabs = (
+    <Tabs
+      items={[
+        {
+          key: 'characters',
+          label: `人物卡 (${characterCards.length})`,
+          children: (
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    生成、续写、润色时会自动注入已启用的人物卡。
+                  </span>
+                </Col>
+                <Col>
+                  <Button type="primary" onClick={openCreateCharacter}>新增人物卡</Button>
+                </Col>
+              </Row>
+              <List
+                dataSource={characterCards}
+                locale={{ emptyText: '暂无人物卡，建议先添加主角、重要配角和反派。' }}
+                renderItem={(card) => (
+                  <List.Item
+                    actions={[
+                      <Switch
+                        key="active"
+                        checked={card.isActive}
+                        checkedChildren="启用"
+                        unCheckedChildren="停用"
+                        onChange={(checked) => handleToggleCharacter(card, checked)}
+                      />,
+                      <Button key="edit" type="link" onClick={() => openEditCharacter(card)}>编辑</Button>,
+                      <Button key="delete" type="link" danger onClick={() => handleDeleteCharacter(card)}>删除</Button>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <span>{card.name}</span>
+                          {card.role && <Tag color="blue">{card.role}</Tag>}
+                          <Tag>优先级 {card.priority}</Tag>
+                          {!card.isActive && <Tag color="default">未启用</Tag>}
+                        </Space>
+                      )}
+                      description={(
+                        <Space direction="vertical" size={4}>
+                          {card.identity && <span>身份：{card.identity}</span>}
+                          {card.personality && <span>性格：{card.personality}</span>}
+                          {card.relationship && <span>关系：{card.relationship}</span>}
+                        </Space>
+                      )}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Space>
+          )
+        },
+        {
+          key: 'setting',
+          label: '内容设定',
+          children: (
+            <Form form={settingForm} layout="vertical">
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item label="世界观" name="worldview">
+                    <Input.TextArea rows={3} placeholder="世界背景、地域、组织、基础规则" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="题材与风格" name="genreStyle">
+                    <Input.TextArea rows={3} placeholder="题材定位、文风、叙事视角、读者爽点" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="力量/能力体系" name="powerSystem">
+                    <Input.TextArea rows={3} placeholder="修炼、异能、科技、道具等能力边界" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="时间线" name="timeline">
+                    <Input.TextArea rows={3} placeholder="故事时间、关键历史事件、当前阶段" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="剧情规则" name="plotRules">
+                    <Input.TextArea rows={3} placeholder="必须遵守的剧情逻辑、伏笔、主线方向" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="禁忌与雷区" name="taboos">
+                    <Input.TextArea rows={3} placeholder="不能出现的桥段、设定冲突或风格禁忌" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="文风指南" name="styleGuide">
+                    <Input.TextArea rows={3} placeholder="句式、节奏、对话比例、描写密度" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="补充备注" name="notes">
+                    <Input.TextArea rows={3} placeholder="其他会长期影响生成的设定" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {novelSetting?.updatedAt ? `上次保存：${new Date(novelSetting.updatedAt).toLocaleString()}` : '尚未保存内容设定'}
+                  </span>
+                </Col>
+                <Col>
+                  <Button type="primary" onClick={handleSaveSetting}>保存内容设定</Button>
+                </Col>
+              </Row>
+            </Form>
+          )
+        }
+      ]}
+    />
+  )
+
+  const renderChapterList = (showHeader = true) => (
+    <>
+      {showHeader && (
+        <Row justify="space-between" align="middle" style={{ marginBottom: '1rem' }}>
+          <Title level={4} style={{ margin: 0 }}>章节列表</Title>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>共 {chapters.length} 章</span>
+        </Row>
+      )}
+      {chapters.length === 0 ? (
+        <div className="novel-generating-waiting" style={{
+          padding: '2rem',
+          textAlign: 'center',
+          border: '1px dashed rgba(59, 130, 246, 0.3)',
+          borderRadius: 8
+        }}>
+          暂无章节，点击&quot;生成章节&quot;开始创作
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {chapters.map((chapter, index) => (
+            <div
+              key={chapter.id}
+              draggable={!isMobile}
+              onDragStart={(e) => handleDragStart(e, chapter.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, chapter.id)}
+              className={`novel-chapter-item ${currentChapter?.id === chapter.id ? 'active' : ''}`}
+              style={{ opacity: draggingChapterId === chapter.id ? 0.5 : 1 }}
+              onClick={() => loadChapter(chapter)}
+            >
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <DragOutlined style={{ color: '#999', cursor: 'grab', fontSize: '16px' }} />
+                <span style={{ color: 'var(--primary-color)', fontWeight: 500, fontSize: '14px' }}>
+                  第{index + 1}章
+                </span>
+                {editingChapterId === chapter.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => {
+                        if (editingTitle.trim() !== '') {
+                          novelService.updateChapterTitle(chapter.id, editingTitle.trim())
+                            .then(() => {
+                              message.success('标题已更新')
+                              fetchChapters()
+                            })
+                            .catch(() => message.error('更新标题失败'))
+                        }
+                        setEditingChapterId(null)
+                      }}
+                      onPressEnter={() => {
+                        if (editingTitle.trim() !== '') {
+                          novelService.updateChapterTitle(chapter.id, editingTitle.trim())
+                            .then(() => {
+                              message.success('标题已更新')
+                              fetchChapters()
+                            })
+                            .catch(() => message.error('更新标题失败'))
+                        }
+                        setEditingChapterId(null)
+                      }}
+                      size="small"
+                      style={{ width: '150px' }}
+                      autoFocus
+                    />
+                    <Button type="text" size="small" onClick={() => setEditingChapterId(null)}>取消</Button>
+                  </div>
+                ) : (
+                  <span
+                    style={{
+                      color: currentChapter?.id === chapter.id ? 'var(--primary-color)' : 'var(--text-primary)',
+                      fontWeight: currentChapter?.id === chapter.id ? 500 : 400,
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                    onClick={() => loadChapter(chapter)}
+                    onDoubleClick={() => {
+                      setEditingChapterId(chapter.id)
+                      setEditingTitle(chapter.title || '未命名章节')
+                    }}
+                  >
+                    {chapter.title || '未命名章节'}
+                  </span>
+                )}
+              </div>
+              <Button
+                danger
+                type="text"
+                size="small"
+                icon={<span>🗑️</span>}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeleteChapter(chapter.id)
+                }}
+              >
+                删除
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+
   return (
     <div className="novel-container">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <Button 
-          type="link" 
+      <div className="novel-mobile-toolbar">
+        <div className="novel-mobile-toolbar-left">
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/creation')}
+            aria-label="返回"
+          />
+          <span className="novel-mobile-toolbar-title">
+            {currentChapter?.title || '小说创作'}
+          </span>
+        </div>
+        <Dropdown menu={{ items: mobileMoreMenuItems }} placement="bottomRight" trigger={['click']}>
+          <Button type="text" icon={<MoreOutlined />} aria-label="更多操作" />
+        </Dropdown>
+      </div>
+
+      <div className="novel-back-row" style={{ marginBottom: '1.5rem' }}>
+        <Button
+          type="link"
           onClick={() => navigate('/creation')}
         >
           返回
@@ -441,7 +918,19 @@ const Novel: React.FC = () => {
           <Title level={4}>小说ID: {id}</Title>
         </Col>
         <Col>
-          <Space className="novel-actions">
+          <Space className="novel-actions novel-actions-desktop">
+            <Button
+              icon={<BranchesOutlined />}
+              onClick={() => navigate(`/novel/${id}/versions`)}
+            >
+              版本管理
+            </Button>
+            <Button
+              icon={<HistoryOutlined />}
+              onClick={() => navigate(`/novel/${id}/history`)}
+            >
+              生成历史
+            </Button>
             <Button type="primary" className="novel-action-button" onClick={() => {
               setActionType('generate')
               setModalVisible(true)
@@ -492,135 +981,57 @@ const Novel: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 章节列表 */}
-      <Row gutter={[16, 16]} className="novel-chapters">
-        <Col span={24}>
-          <div className="novel-chapter-list">
-            <Row justify="space-between" align="middle" style={{ marginBottom: '1rem' }}>
-              <Title level={4} style={{ margin: 0 }}>章节列表</Title>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>共 {chapters.length} 章</span>
-            </Row>
-            {chapters.length === 0 ? (
-              <div className="novel-generating-waiting" style={{ 
-                padding: '2rem', 
-                textAlign: 'center',
-                border: '1px dashed rgba(59, 130, 246, 0.3)',
-                borderRadius: 8
-              }}>
-                暂无章节，点击"生成章节"开始创作
+      <Card
+        className="novel-memory-card--desktop"
+        title="小说记忆"
+        loading={memoryLoading}
+        style={{ marginBottom: '1.5rem' }}
+      >
+        {memoryTabs}
+      </Card>
+
+      <Collapse
+        className="novel-memory-collapse"
+        items={[{
+          key: 'memory',
+          label: `小说记忆${memoryLoading ? '（加载中）' : ''}`,
+          children: memoryLoading ? <Loading /> : memoryTabs
+        }]}
+      />
+
+      {isMobile ? (
+        <Collapse
+          className="novel-chapters-collapse"
+          defaultActiveKey={['chapters']}
+          items={[{
+            key: 'chapters',
+            label: (
+              <span className="novel-chapters-collapse-label">
+                章节列表
+                <Tag color="processing" className="novel-chapters-count">共 {chapters.length} 章</Tag>
+                {currentChapter && (
+                  <span className="novel-chapters-current">
+                    当前：{currentChapter.title || '未命名章节'}
+                  </span>
+                )}
+              </span>
+            ),
+            children: (
+              <div className="novel-chapter-list novel-chapter-list--mobile">
+                {renderChapterList(false)}
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {chapters.map((chapter, index) => (
-                  <div 
-                    key={chapter.id}
-                    draggable="true"
-                    onDragStart={(e) => handleDragStart(e, chapter.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, chapter.id)}
-                    className={`novel-chapter-item ${currentChapter?.id === chapter.id ? 'active' : ''}`}
-                    style={{
-                      opacity: draggingChapterId === chapter.id ? 0.5 : 1
-                    }}
-                    onClick={() => loadChapter(chapter)}
-                  >
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <DragOutlined 
-                        style={{ 
-                          color: '#999', 
-                          cursor: 'grab',
-                          fontSize: '16px'
-                        }} 
-                      />
-                      <span style={{ 
-                        color: '#1890ff', 
-                        fontWeight: 500,
-                        fontSize: '14px'
-                      }}>
-                        第{index + 1}章
-                      </span>
-                      {editingChapterId === chapter.id ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Input 
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onBlur={() => {
-                              if (editingTitle.trim() !== '') {
-                                novelService.updateChapterTitle(chapter.id, editingTitle.trim())
-                                  .then(() => {
-                                    message.success('标题已更新')
-                                    fetchChapters()
-                                  })
-                                  .catch((error) => {
-                                    console.error('更新标题失败:', error)
-                                    message.error('更新标题失败')
-                                  })
-                              }
-                              setEditingChapterId(null)
-                            }}
-                            onPressEnter={() => {
-                              if (editingTitle.trim() !== '') {
-                                novelService.updateChapterTitle(chapter.id, editingTitle.trim())
-                                  .then(() => {
-                                    message.success('标题已更新')
-                                    fetchChapters()
-                                  })
-                                  .catch((error) => {
-                                    console.error('更新标题失败:', error)
-                                    message.error('更新标题失败')
-                                  })
-                              }
-                              setEditingChapterId(null)
-                            }}
-                            size="small"
-                            style={{ width: '150px' }}
-                            autoFocus
-                          />
-                          <Button 
-                            type="text" 
-                            size="small"
-                            onClick={() => setEditingChapterId(null)}
-                          >
-                            取消
-                          </Button>
-                        </div>
-                      ) : (
-                        <span 
-                          style={{ 
-                            color: currentChapter?.id === chapter.id ? '#1890ff' : '#333',
-                            fontWeight: currentChapter?.id === chapter.id ? 500 : 400,
-                            cursor: 'pointer',
-                            userSelect: 'none'
-                          }}
-                          onClick={() => loadChapter(chapter)}
-                          onDoubleClick={() => {
-                            setEditingChapterId(chapter.id)
-                            setEditingTitle(chapter.title || '未命名章节')
-                          }}
-                        >
-                          {chapter.title || '未命名章节'}
-                        </span>
-                      )}
-                    </div>
-                    <Button 
-                      danger 
-                      type="text"
-                      size="small"
-                      icon={<span>🗑️</span>}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteChapter(chapter.id)
-                      }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Col>
-      </Row>
+            )
+          }]}
+        />
+      ) : (
+        <Row gutter={[16, 16]} className="novel-chapters">
+          <Col span={24}>
+            <div className="novel-chapter-list">
+              {renderChapterList(true)}
+            </div>
+          </Col>
+        </Row>
+      )}
 
       {/* 章节内容显示 */}
       {currentChapter && !loading && (
@@ -702,6 +1113,100 @@ const Novel: React.FC = () => {
         </Row>
       )}
 
+      <div className="novel-ai-bar" role="toolbar" aria-label="创作操作">
+        <Button type="primary" size="small" onClick={openGenerateModal}>
+          生成
+        </Button>
+        <Button size="small" onClick={openContinueModal}>
+          续写
+        </Button>
+        <Button size="small" onClick={openPolishModal}>
+          润色
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            if (!currentChapter) {
+              message.warning('请先选择一个章节')
+              return
+            }
+            const contentState = editorState.getCurrentContent()
+            handleSaveChapter(contentState.getPlainText(), currentChapter?.plot)
+          }}
+        >
+          保存
+        </Button>
+      </div>
+
+      <Modal
+        title={editingCharacter ? '编辑人物卡' : '新增人物卡'}
+        open={characterModalVisible}
+        onCancel={() => setCharacterModalVisible(false)}
+        onOk={handleSaveCharacter}
+        okText="保存"
+        width={720}
+      >
+        <Form form={characterForm} layout="vertical">
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item label="姓名" name="name" rules={[{ required: true, message: '请输入人物姓名' }]}>
+                <Input placeholder="例如：林夜" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="角色定位" name="role">
+                <Input placeholder="主角 / 女主 / 反派 / 配角" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="身份" name="identity">
+                <Input placeholder="出身、职业、阵营、当前身份" />
+              </Form.Item>
+            </Col>
+            <Col xs={12} md={6}>
+              <Form.Item label="优先级" name="priority" initialValue={5}>
+                <InputNumber min={1} max={10} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} md={6}>
+              <Form.Item label="启用" name="isActive" valuePropName="checked" initialValue>
+                <Switch checkedChildren="启用" unCheckedChildren="停用" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="性格" name="personality">
+                <Input.TextArea rows={3} placeholder="核心性格、说话方式、行为习惯" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="外貌" name="appearance">
+                <Input.TextArea rows={3} placeholder="外貌特征、服饰、气质" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="人物关系" name="relationship">
+                <Input.TextArea rows={3} placeholder="与主角、势力、其他角色的关系" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="秘密/动机" name="secret">
+                <Input.TextArea rows={3} placeholder="隐藏身份、秘密目标、核心动机" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="成长线" name="arc">
+                <Input.TextArea rows={3} placeholder="人物弧光、阶段变化、命运走向" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="备注" name="notes">
+                <Input.TextArea rows={3} placeholder="其他长期约束" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
       <Modal
         title={actionType === 'generate' ? '生成章节' : actionType === 'continue' ? '续写章节' : '内容润色'}
         open={modalVisible}
@@ -713,6 +1218,44 @@ const Novel: React.FC = () => {
       >
         {actionType === 'generate' && (
           <Form layout="vertical">
+            <Form.Item
+              label={`Prompt 模板库（资料更新：${PROMPT_TEMPLATES_UPDATED_AT}）`}
+              name="promptTemplate"
+            >
+              <Select
+                allowClear
+                showSearch
+                placeholder="选择热门题材模板，一键填充生成参数"
+                value={selectedTemplateId}
+                onChange={(templateId) => {
+                  const template = PROMPT_TEMPLATES.find((item) => item.id === templateId)
+                  if (template) {
+                    applyPromptTemplate(template)
+                  } else {
+                    setSelectedTemplateId(undefined)
+                  }
+                }}
+                optionLabelProp="label"
+                options={PROMPT_TEMPLATES.map((template) => ({
+                  value: template.id,
+                  label: template.title,
+                  template
+                }))}
+                optionRender={(option) => {
+                  const template = option.data.template
+                  return (
+                    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space wrap>
+                        <span>{template.title}</span>
+                        <Tag color="blue">{template.category}</Tag>
+                        {template.tags.slice(0, 3).map((tag) => <Tag key={tag}>{tag}</Tag>)}
+                      </Space>
+                      <span style={{ color: '#a5b4fc', fontSize: 12 }}>{template.reason}</span>
+                    </Space>
+                  )
+                }}
+              />
+            </Form.Item>
             <Form.Item
               label="章节标题"
               name="chapterTitle"

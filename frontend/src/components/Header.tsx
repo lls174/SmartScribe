@@ -2,14 +2,14 @@ import React, { useState } from 'react'
 import { Layout, Menu, Button, Space, Dropdown, Drawer } from 'antd'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@hooks/useAuth'
-import { UserOutlined, LogoutOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, DeleteOutlined, MenuOutlined, BulbOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 
 const { Header: AntHeader } = Layout
 
 const Header: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, logout } = useAuth()
+  const { isAuthenticated, logout, user } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
@@ -27,6 +27,10 @@ const Header: React.FC = () => {
       label: <Link to="/creation">创作</Link>
     },
     {
+      key: '/prompt-templates',
+      label: <Link to="/prompt-templates">模板库</Link>
+    },
+    {
       key: '/creative',
       label: <Link to="/creative">创意生成</Link>
     },
@@ -41,8 +45,14 @@ const Header: React.FC = () => {
   ]
 
   const userMenuItems = [
+    ...(user?.role === 'admin' ? [{
+      key: 'admin',
+      icon: <SafetyCertificateOutlined />,
+      label: <Link to="/admin">管理后台</Link>
+    }] : []),
     { 
       key: 'creative-list',
+      icon: <BulbOutlined />,
       label: <Link to="/creative-list">创意管理</Link>
     },
     {
@@ -148,9 +158,9 @@ const Header: React.FC = () => {
       
       <style>{`
         .sci-fi-header {
-          background: rgba(26, 31, 58, 0.8) !important;
+          background: var(--header-bg) !important;
           backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+          border-bottom: 1px solid var(--header-border);
           padding: 0;
           padding-top: env(safe-area-inset-top);
           height: calc(64px + env(safe-area-inset-top));
@@ -173,7 +183,7 @@ const Header: React.FC = () => {
         .header-logo {
           font-size: 1.5rem;
           font-weight: bold;
-          background: linear-gradient(135deg, #00d4ff, #7c3aed);
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -188,7 +198,7 @@ const Header: React.FC = () => {
         }
 
         .header-menu .ant-menu-item {
-          color: #a5b4fc !important;
+          color: var(--menu-text) !important;
           font-weight: 500;
           letter-spacing: 0.05em;
           border-bottom: 2px solid transparent !important;
@@ -196,13 +206,13 @@ const Header: React.FC = () => {
         }
 
         .header-menu .ant-menu-item:hover {
-          color: #00d4ff !important;
+          color: var(--primary-color) !important;
         }
 
         .header-menu .ant-menu-item-selected {
-          color: #00d4ff !important;
+          color: var(--primary-color) !important;
           background: transparent !important;
-          border-bottom: 2px solid #00d4ff !important;
+          border-bottom: 2px solid var(--primary-color) !important;
         }
 
         .header-menu .ant-menu-item::after {
@@ -211,20 +221,20 @@ const Header: React.FC = () => {
 
         .header-user-btn,
         .header-register-btn {
-          background: rgba(26, 31, 58, 0.6) !important;
-          border: 1px solid rgba(59, 130, 246, 0.3) !important;
-          color: #e0e7ff !important;
+          background: var(--btn-bg) !important;
+          border: 1px solid var(--header-border) !important;
+          color: var(--text-primary) !important;
         }
 
         .header-user-btn:hover,
         .header-register-btn:hover {
-          background: rgba(37, 43, 72, 0.8) !important;
-          border-color: rgba(0, 212, 255, 0.5) !important;
-          color: #00d4ff !important;
+          background: var(--btn-bg-hover) !important;
+          border-color: var(--primary-50) !important;
+          color: var(--primary-color) !important;
         }
 
         .header-login-btn {
-          background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
           border: none !important;
         }
 
@@ -233,18 +243,18 @@ const Header: React.FC = () => {
         }
 
         .ant-dropdown-menu {
-          background: rgba(26, 31, 58, 0.95) !important;
-          border: 1px solid rgba(59, 130, 246, 0.3) !important;
+          background: var(--dropdown-bg) !important;
+          border: 1px solid var(--header-border) !important;
           backdrop-filter: blur(10px);
         }
 
         .ant-dropdown-menu-item {
-          color: #a5b4fc !important;
+          color: var(--menu-text) !important;
         }
 
         .ant-dropdown-menu-item:hover {
-          background: rgba(0, 212, 255, 0.1) !important;
-          color: #00d4ff !important;
+          background: var(--primary-10) !important;
+          color: var(--primary-color) !important;
         }
 
         /* 移动端菜单按钮 */
@@ -253,28 +263,28 @@ const Header: React.FC = () => {
         }
 
         .mobile-menu-toggle {
-          background: rgba(26, 31, 58, 0.6) !important;
-          border: 1px solid rgba(59, 130, 246, 0.3) !important;
-          color: #e0e7ff !important;
+          background: var(--btn-bg) !important;
+          border: 1px solid var(--header-border) !important;
+          color: var(--text-primary) !important;
         }
 
         .mobile-menu-toggle:hover {
-          background: rgba(37, 43, 72, 0.8) !important;
-          border-color: rgba(0, 212, 255, 0.5) !important;
-          color: #00d4ff !important;
+          background: var(--btn-bg-hover) !important;
+          border-color: var(--primary-50) !important;
+          color: var(--primary-color) !important;
         }
 
         /* 移动端侧边菜单 */
         .mobile-drawer {
-          background: rgba(10, 14, 39, 0.95) !important;
+          background: var(--drawer-bg) !important;
           backdrop-filter: blur(10px);
-          border-left: 1px solid rgba(59, 130, 246, 0.3);
+          border-left: 1px solid var(--header-border);
         }
 
         .drawer-logo {
           font-size: 1.2rem;
           font-weight: bold;
-          background: linear-gradient(135deg, #00d4ff, #7c3aed);
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -287,24 +297,24 @@ const Header: React.FC = () => {
         }
 
         .mobile-drawer-menu .ant-menu-item {
-          color: #a5b4fc !important;
+          color: var(--menu-text) !important;
           margin: 8px 0;
           border-radius: 6px;
         }
 
         .mobile-drawer-menu .ant-menu-item:hover {
-          color: #00d4ff !important;
-          background: rgba(0, 212, 255, 0.1) !important;
+          color: var(--primary-color) !important;
+          background: var(--primary-10) !important;
         }
 
         .mobile-drawer-menu .ant-menu-item-selected {
-          color: #00d4ff !important;
-          background: rgba(0, 212, 255, 0.15) !important;
+          color: var(--primary-color) !important;
+          background: color-mix(in srgb, var(--primary-color) 16%, transparent) !important;
         }
 
         .mobile-drawer-divider {
           height: 1px;
-          background: rgba(59, 130, 246, 0.2);
+          background: var(--border-20);
           margin: 16px 0;
         }
 

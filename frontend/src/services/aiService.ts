@@ -25,6 +25,7 @@ interface AIRequestConfig {
 }
 
 export interface NovelContext {
+  novelId?: number
   novelMeta?: {
     name?: string
     description?: string
@@ -144,7 +145,7 @@ export const aiService = {
     }
   ): Promise<{ content: string; plot: string }> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
@@ -157,6 +158,7 @@ export const aiService = {
             model,
             apiKey: aiConfig?.apiKey || '',
             customBaseURL: aiConfig?.customBaseURL || '',
+            novelId: novelContext?.novelId,
             novelMeta: novelContext?.novelMeta,
             chapters: novelContext?.chapters,
             currentChapterId: novelContext?.currentChapterId,
@@ -190,7 +192,7 @@ export const aiService = {
     wordCount?: string
   ): Promise<{ content: string; plot: string }> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
@@ -204,6 +206,8 @@ export const aiService = {
             model,
             apiKey: aiConfig?.apiKey || '',
             customBaseURL: aiConfig?.customBaseURL || '',
+            novelId: novelContext?.novelId,
+            chapterId: novelContext?.currentChapterId,
             novelMeta: novelContext?.novelMeta,
             chapters: novelContext?.chapters,
             currentChapterId: novelContext?.currentChapterId,
@@ -227,10 +231,15 @@ export const aiService = {
     onChunk?: (chunk: string) => void,
     onDone?: () => void,
     aiConfig?: AIRequestConfig,
-    novelContext?: NovelContext
+    novelContext?: NovelContext,
+    historyMeta?: {
+      beforeContent?: string
+      beforePlot?: string
+      chapterTitle?: string
+    }
   ): Promise<string> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
@@ -307,6 +316,11 @@ export const aiService = {
           model,
           apiKey: aiConfig?.apiKey || '',
           customBaseURL: aiConfig?.customBaseURL || '',
+          novelId: novelContext?.novelId,
+          chapterId: novelContext?.currentChapterId,
+          beforeContent: historyMeta?.beforeContent,
+          beforePlot: historyMeta?.beforePlot,
+          chapterTitle: historyMeta?.chapterTitle,
           novelMeta: novelContext?.novelMeta,
           chapters: novelContext?.chapters,
           currentChapterId: novelContext?.currentChapterId
@@ -325,7 +339,7 @@ export const aiService = {
     aiConfig?: AIRequestConfig
   ): Promise<string> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
@@ -418,7 +432,7 @@ export const aiService = {
     aiConfig?: AIRequestConfig
   ): Promise<string> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {
@@ -511,7 +525,7 @@ export const aiService = {
     aiConfig?: AIRequestConfig
   ): Promise<string> => {
     const platform = aiConfig?.platform || localStorage.getItem('aiPlatform') || 'aliyun'
-    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen-turbo'
+    const model = aiConfig?.model || localStorage.getItem('aiModel') || 'qwen3.5-plus'
     
     return new Promise((resolve, reject) => {
       getCsrfToken().then(csrfToken => {

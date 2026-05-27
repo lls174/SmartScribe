@@ -2,6 +2,13 @@
 
 一款轻量化 AI 网文创作工具
 
+## 部署说明
+
+- 服务器部署文档（Linux + Nginx + PM2）：[`部署文档.md`](部署文档.md)
+- 云端部署文档（Vercel + Render）：[`部署文档-Vercel-Render.md`](部署文档-Vercel-Render.md)
+- 后端环境变量示例：[`backend/.env.example`](backend/.env.example)
+- 前端环境变量示例：[`frontend/.env.example`](frontend/.env.example)
+
 ## 📁 项目结构
 
 ## 🛠️ 技术栈
@@ -54,6 +61,7 @@ npm install
 | `DEEPSEEK_API_KEY`  | DeepSeek API 密钥 | 否（可在前端填写） |
 | `OPENAI_API_KEY`    | OpenAI API 密钥   | 否（可在前端填写） |
 | `JWT_SECRET`        | JWT 签名密钥        | **是**     |
+| `ADMIN_BOOTSTRAP_KEY` | 管理员初始化密钥（创建/提升首个 admin） | 否（建议生产必配） |
 
 > **安全提示**：`JWT_SECRET` 必须配置，其他 AI 密钥可选。用户也可在前端「AI 设置」页面自行输入 API 密钥（仅存于内存）。
 
@@ -70,6 +78,7 @@ DB_PASSWORD=你的数据库密码
 DB_NAME=smart_scribe
 JWT_SECRET=你的JWT密钥
 NODE_ENV=development
+ADMIN_BOOTSTRAP_KEY=用于初始化管理员的随机密钥
 
 # 以下为可选的服务端默认 AI 密钥（用户未填写时使用）
 DASHSCOPE_API_KEY=
@@ -90,6 +99,15 @@ npm run db:init
 ```
 
 > 此命令会自动创建所有必要的数据表（users, novels, chapters, feedbacks, creatives）。如需更新表结构，请手动删除对应表后重新运行。
+
+### 4.1 版本升级迁移（RBAC/用量日志）
+
+如果你是从旧版本升级到包含 RBAC、AI 请求日志/用量统计的新版本，请执行一次迁移（会补齐 `users` 新字段并创建 `ai_request_logs` 表）：
+
+```bash
+cd backend
+npm run db:migrate:rbac-usage
+```
 
 ### 5. 启动服务
 
@@ -135,6 +153,19 @@ npm run dev
 5. **续写/润色** → 对已有章节进行续写或润色处理
 6. **创意生成** → 获取流行趋势、热门题材、创意元素灵感
 7. **保存创意** → 将生成的创意内容保存到创意管理
+
+### 管理后台（admin）
+
+- **入口**：管理员登录后，右上角用户菜单会出现「管理后台」，路径为 `/admin`。
+- **能力**：查看反馈、封禁/解封用户、查看系统总用量、查看用户用量与 AI 请求日志（token 统计优先使用平台返回的 `usage`，否则估算）。
+- **初始化管理员**：在后端配置 `ADMIN_BOOTSTRAP_KEY` 后调用：
+
+```bash
+curl -X POST "http://localhost:3001/api/admin/bootstrap" ^
+  -H "Content-Type: application/json" ^
+  -H "x-admin-bootstrap-key: <你的ADMIN_BOOTSTRAP_KEY>" ^
+  -d "{\"username\":\"admin\",\"password\":\"admin123456\"}"
+```
 
 ### 流式响应体验
 

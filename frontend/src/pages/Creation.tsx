@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Button, Typography, Space, Card, List, Modal, Form, Input, message, Popconfirm } from 'antd'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { novelService } from '@services/novelService'
 import { useAuth } from '@hooks/useAuth'
@@ -22,6 +22,9 @@ const Creation: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
+  const [editModalVisible, setEditModalVisible] = useState(false)
+  const [editingNovel, setEditingNovel] = useState<Novel | null>(null)
+  const [editForm] = Form.useForm()
 
   useEffect(() => {
     if (authLoading) return
@@ -65,15 +68,41 @@ const Creation: React.FC = () => {
     }
   }
 
+  const handleOpenEditNovel = (novel: Novel) => {
+    setEditingNovel(novel)
+    editForm.setFieldsValue({
+      name: novel.name,
+      description: novel.description
+    })
+    setEditModalVisible(true)
+  }
+
+  const handleUpdateNovel = async (values: { name: string; description: string }) => {
+    if (!editingNovel) return
+    try {
+      const updated = await novelService.updateNovel(editingNovel.id, {
+        name: values.name,
+        description: values.description
+      })
+      setNovels(prev => prev.map(n => (n.id === updated.id ? { ...n, ...updated } : n)))
+      message.success('更新成功')
+      setEditModalVisible(false)
+      setEditingNovel(null)
+      editForm.resetFields()
+    } catch (error) {
+      message.error('更新失败')
+    }
+  }
+
   return (
     <div className="creation-container">
       <div className="creation-header">
-        <Title level={2} className="creation-title">小说管理</Title>
+        <Title level={2} className="creation-title page-title--hide-mobile">小说管理</Title>
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
-          className="creation-button"
+          className="creation-button creation-button--desktop"
         >
           新建小说
         </Button>
@@ -97,6 +126,13 @@ const Creation: React.FC = () => {
                 <Link to={`/novel/${novel.id}`}>
                   <Button type="primary" className="action-button">进入创作</Button>
                 </Link>
+                <Button
+                  icon={<EditOutlined />}
+                  className="action-button"
+                  onClick={() => handleOpenEditNovel(novel)}
+                >
+                  编辑
+                </Button>
                 <Popconfirm
                   title="确定要删除这本小说吗？"
                   onConfirm={() => handleDeleteNovel(novel.id)}
@@ -109,6 +145,14 @@ const Creation: React.FC = () => {
             </Card>
           </List.Item>
         )}
+      />
+
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        className="creation-fab"
+        aria-label="新建小说"
+        onClick={() => setModalVisible(true)}
       />
 
       <Modal
@@ -136,6 +180,46 @@ const Creation: React.FC = () => {
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={() => setModalVisible(false)}>取消</Button>
               <Button type="primary" htmlType="submit" className="creation-button">创建</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="编辑小说信息"
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false)
+          setEditingNovel(null)
+        }}
+        footer={null}
+        className="creation-modal"
+      >
+        <Form form={editForm} onFinish={handleUpdateNovel} layout="vertical">
+          <Form.Item
+            label="小说名称"
+            name="name"
+            rules={[{ required: true, message: '请输入小说名称' }]}
+          >
+            <Input placeholder="请输入小说名称" className="creation-input" />
+          </Form.Item>
+          <Form.Item
+            label="小说简介"
+            name="description"
+          >
+            <Input.TextArea placeholder="请输入小说简介（选填）" rows={4} className="creation-input" />
+          </Form.Item>
+          <Form.Item>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setEditModalVisible(false)
+                setEditingNovel(null)
+              }}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit" className="creation-button">
+                保存
+              </Button>
             </Space>
           </Form.Item>
         </Form>

@@ -15,13 +15,13 @@
 }
 
 .creative-list-description {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
   margin-bottom: 1rem !important;
 }
 
 .creative-list-card {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--header-border) !important;
   border-radius: 8px;
 }
 
@@ -31,44 +31,44 @@
 }
 
 .creative-list-card .ant-table-thead > tr > th {
-  background: rgba(26, 31, 58, 0.8) !important;
-  color: #00d4ff !important;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: var(--header-bg) !important;
+  color: var(--primary-color) !important;
+  border-bottom: 1px solid var(--header-border) !important;
   font-weight: 600;
   letter-spacing: 0.05em;
 }
 
 .creative-list-card .ant-table-tbody > tr > td {
-  background: rgba(37, 43, 72, 0.3) !important;
-  color: #e0e7ff !important;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.15) !important;
+  background: color-mix(in srgb, var(--surface-light) 35%, transparent) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-20) !important;
 }
 
 /* 表格行悬停 */
 .creative-list-row:hover > td,
 .creative-list-card .ant-table-tbody > tr:hover > td {
-  background: rgba(0, 212, 255, 0.08) !important;
+  background: var(--primary-10) !important;
 }
 
 /* 标题列 */
 .creative-list-title-text {
   font-weight: 500;
-  color: #e0e7ff;
+  color: var(--text-primary);
 }
 
 /* 操作按钮 */
 .creative-list-card .ant-btn-text {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
 }
 
 .creative-list-card .ant-btn-text:hover {
-  color: #00d4ff !important;
-  background: rgba(0, 212, 255, 0.1) !important;
+  color: var(--primary-color) !important;
+  background: var(--primary-10) !important;
 }
 
 .creative-list-card .ant-btn-text.danger:hover {
-  color: #ef4444 !important;
-  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--error-color) !important;
+  background: color-mix(in srgb, var(--error-color) 12%, transparent) !important;
 }
 
 /* 分页器样式 */
@@ -77,17 +77,17 @@
 }
 
 .creative-list-card .ant-pagination-item {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--header-border) !important;
   border-radius: 6px;
 }
 
 .creative-list-card .ant-pagination-item a {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
 }
 
 .creative-list-card .ant-pagination-item-active {
-  background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
   border-color: transparent !important;
 }
 
@@ -100,23 +100,23 @@
 .creative-list-card .ant-pagination-next {
   background: transparent !important;
   border: none !important;
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
 }
 
 .creative-list-card .ant-pagination-prev:hover,
 .creative-list-card .ant-pagination-next:hover {
-  color: #00d4ff !important;
+  color: var(--primary-color) !important;
 }
 
 .creative-list-card .ant-select-selector {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
-  color: #a5b4fc !important;
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--header-border) !important;
+  color: var(--text-secondary) !important;
   border-radius: 6px;
 }
 
 .creative-list-card .ant-select-selection-item {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
 }
 
 .creative-list-card .ant-table-empty {
@@ -136,14 +136,14 @@
   gap: 1rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
-  color: #a5b4fc;
+  border-bottom: 1px solid var(--header-border);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .creative-view-body {
   line-height: 1.8;
-  color: #e0e7ff;
+  color: var(--text-primary);
   white-space: pre-wrap;
 }
 

@@ -14,6 +14,95 @@
   --warning-color: #f59e0b;
   --glow-primary: 0 0 20px rgba(0, 212, 255, 0.5);
   --glow-secondary: 0 0 20px rgba(124, 58, 237, 0.5);
+  --border-35: rgba(59, 130, 246, 0.35);
+  --border-30: rgba(59, 130, 246, 0.3);
+  --border-20: rgba(59, 130, 246, 0.2);
+  --primary-50: rgba(0, 212, 255, 0.5);
+  --primary-20: rgba(0, 212, 255, 0.2);
+  --primary-10: rgba(0, 212, 255, 0.1);
+  --input-bg: rgb(10, 14, 39);
+  --decor-1: rgba(0, 212, 255, 0.05);
+  --decor-2: rgba(124, 58, 237, 0.05);
+  --decor-3: rgba(245, 158, 11, 0.03);
+  --header-bg: rgba(26, 31, 58, 0.8);
+  --header-border: rgba(59, 130, 246, 0.3);
+  --menu-text: #a5b4fc;
+  --dropdown-bg: rgba(26, 31, 58, 0.95);
+  --drawer-bg: rgba(10, 14, 39, 0.95);
+  --btn-bg: rgba(26, 31, 58, 0.6);
+  --btn-bg-hover: rgba(37, 43, 72, 0.8);
+  --bottom-nav-bg: rgba(10, 14, 26, 0.95);
+  --mobile-header-bg: rgba(10, 14, 26, 0.92);
+}
+
+html[data-theme='warm-light'] {
+  --primary-color: #f97316;
+  --secondary-color: #a855f7;
+  --accent-color: #f59e0b;
+  --background-dark: #fbf7ef;
+  --background-darker: #f6efe2;
+  --surface-color: #ffffff;
+  --surface-light: #fff7ed;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --border-color: #9c682c;
+  --success-color: #16a34a;
+  --error-color: #dc2626;
+  --warning-color: #f59e0b;
+  --border-35: rgba(156, 104, 44, 0.25);
+  --border-30: rgba(156, 104, 44, 0.2);
+  --border-20: rgba(156, 104, 44, 0.15);
+  --primary-50: rgba(249, 115, 22, 0.45);
+  --primary-20: rgba(249, 115, 22, 0.18);
+  --primary-10: rgba(249, 115, 22, 0.1);
+  --input-bg: rgb(255, 255, 255);
+  --decor-1: rgba(249, 115, 22, 0.08);
+  --decor-2: rgba(168, 85, 247, 0.06);
+  --decor-3: rgba(245, 158, 11, 0.06);
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --header-border: rgba(156, 104, 44, 0.18);
+  --menu-text: #4b5563;
+  --dropdown-bg: rgba(255, 255, 255, 0.96);
+  --drawer-bg: rgba(246, 239, 226, 0.96);
+  --btn-bg: rgba(255, 255, 255, 0.72);
+  --btn-bg-hover: rgba(255, 247, 237, 0.92);
+  --bottom-nav-bg: rgba(255, 255, 255, 0.96);
+  --mobile-header-bg: rgba(255, 255, 255, 0.94);
+}
+
+html[data-theme='ink-dark'] {
+  --primary-color: #34d399;
+  --secondary-color: #fbbf24;
+  --accent-color: #22c55e;
+  --background-dark: #08120f;
+  --background-darker: #040a08;
+  --surface-color: #0d1f18;
+  --surface-light: #123126;
+  --text-primary: #dcfce7;
+  --text-secondary: rgba(220, 252, 231, 0.72);
+  --border-color: #34d399;
+  --success-color: #22c55e;
+  --error-color: #fb7185;
+  --warning-color: #fbbf24;
+  --border-35: rgba(52, 211, 153, 0.22);
+  --border-30: rgba(52, 211, 153, 0.18);
+  --border-20: rgba(52, 211, 153, 0.12);
+  --primary-50: rgba(52, 211, 153, 0.42);
+  --primary-20: rgba(52, 211, 153, 0.18);
+  --primary-10: rgba(52, 211, 153, 0.1);
+  --input-bg: rgb(8, 18, 15);
+  --decor-1: rgba(52, 211, 153, 0.06);
+  --decor-2: rgba(251, 191, 36, 0.05);
+  --decor-3: rgba(34, 197, 94, 0.04);
+  --header-bg: rgba(13, 31, 24, 0.84);
+  --header-border: rgba(52, 211, 153, 0.18);
+  --menu-text: rgba(220, 252, 231, 0.7);
+  --dropdown-bg: rgba(13, 31, 24, 0.96);
+  --drawer-bg: rgba(4, 10, 8, 0.96);
+  --btn-bg: rgba(13, 31, 24, 0.66);
+  --btn-bg-hover: rgba(18, 49, 38, 0.86);
+  --bottom-nav-bg: rgba(4, 10, 8, 0.96);
+  --mobile-header-bg: rgba(8, 18, 15, 0.94);
 }
 
 * {
@@ -46,9 +135,9 @@ body::before {
   width: 100%;
   height: 100%;
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 40% 80%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, var(--decor-1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, var(--decor-2) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, var(--decor-3) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -88,12 +177,12 @@ a:hover {
 
 /* 独立 Input 组件的原生 input 元素 */
 input.ant-input {
-  background-color: rgb(10, 14, 39) !important;
-  background: rgb(10, 14, 39) !important;
-  border: 1px solid rgba(59, 130, 246, 0.35) !important;
-  color: #e0e7ff !important;
-  -webkit-text-fill-color: #e0e7ff !important;
-  caret-color: #00d4ff !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border-35) !important;
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--primary-color) !important;
   border-radius: 6px !important;
   height: 36px !important;
   padding: 4px 12px !important;
@@ -102,39 +191,39 @@ input.ant-input {
 }
 
 input.ant-input:hover {
-  border-color: rgba(0, 212, 255, 0.5) !important;
+  border-color: var(--primary-50) !important;
 }
 
 input.ant-input:focus {
-  border-color: #00d4ff !important;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 10px var(--primary-20) !important;
   outline: none !important;
 }
 
 input.ant-input::placeholder,
 input.ant-input::-webkit-input-placeholder {
-  color: rgba(165, 180, 252, 0.5) !important;
-  -webkit-text-fill-color: rgba(165, 180, 252, 0.5) !important;
+  color: color-mix(in srgb, var(--text-secondary) 65%, transparent) !important;
+  -webkit-text-fill-color: color-mix(in srgb, var(--text-secondary) 65%, transparent) !important;
 }
 
 /* Input.Password 的外层容器 */
 .ant-input-affix-wrapper {
-  background-color: rgb(10, 14, 39) !important;
-  background: rgb(10, 14, 39) !important;
-  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border-35) !important;
   border-radius: 6px !important;
   padding: 0 11px !important;
   transition: all 0.3s ease !important;
 }
 
 .ant-input-affix-wrapper:hover {
-  border-color: rgba(0, 212, 255, 0.5) !important;
+  border-color: var(--primary-50) !important;
 }
 
 .ant-input-affix-wrapper-focused,
 .ant-input-affix-wrapper:focus-within {
-  border-color: #00d4ff !important;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 10px var(--primary-20) !important;
 }
 
 /* Password 内部的 input 必须透明 */
@@ -144,25 +233,25 @@ input.ant-input::-webkit-input-placeholder {
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: #e0e7ff !important;
-  -webkit-text-fill-color: #e0e7ff !important;
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
   height: auto !important;
   padding: 0 !important;
 }
 
 .ant-input-password-icon,
 .ant-input-suffix .anticon {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
 }
 
 /* ========== 解决浏览器自动填充样式问题 ========== */
 
 /* Firefox */
 input.ant-input:-moz-autofill {
-  background-color: rgb(10, 14, 39) !important;
-  background: rgb(10, 14, 39) !important;
-  color: #e0e7ff !important;
-  -moz-text-fill-color: #e0e7ff !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  -moz-text-fill-color: var(--text-primary) !important;
 }
 
 /* Chrome, Safari, Edge */
@@ -170,12 +259,12 @@ input.ant-input:-webkit-autofill,
 input.ant-input:-webkit-autofill:hover,
 input.ant-input:-webkit-autofill:focus,
 input.ant-input:-webkit-autofill:active {
-  background-color: rgb(10, 14, 39) !important;
-  background: rgb(10, 14, 39) !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
   transition: background-color 5000s ease-in-out 0s !important;
-  -webkit-text-fill-color: #e0e7ff !important;
-  color: #e0e7ff !important;
-  caret-color: #00d4ff !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  caret-color: var(--primary-color) !important;
 }
 
 /* 针对 Password 容器内的输入框 */
@@ -186,9 +275,9 @@ input.ant-input:-webkit-autofill:active {
   background: transparent !important;
   background-color: transparent !important;
   transition: background-color 5000s ease-in-out 0s !important;
-  -webkit-text-fill-color: #e0e7ff !important;
-  color: #e0e7ff !important;
-  caret-color: #00d4ff !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  caret-color: var(--primary-color) !important;
 }
 
 @keyframes pulse {
@@ -244,7 +333,7 @@ input.ant-input:-webkit-autofill:active {
 }
 
 .DraftEditor-root {
-  color: #e0e7ff !important;
+  color: var(--text-primary) !important;
   font-size: 15px;
   line-height: 1.8;
 }
@@ -254,11 +343,11 @@ input.ant-input:-webkit-autofill:active {
 }
 
 .public-DraftEditor-content {
-  color: #e0e7ff !important;
+  color: var(--text-primary) !important;
 }
 
 .public-DraftStyleDefault-block {
-  color: #e0e7ff !important;
+  color: var(--text-primary) !important;
 }
 
 .public-DraftEditorPlaceholder-root {
@@ -276,7 +365,7 @@ input.ant-input:-webkit-autofill:active {
   }
   
   body {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    padding-bottom: 0;
   }
   
   h1 {
@@ -296,7 +385,8 @@ input.ant-input:-webkit-autofill:active {
   }
   
   /* 内容区域 padding */
-  .ant-layout-content {
+  .ant-layout-content,
+  .app-main-content {
     padding: 16px !important;
   }
   
@@ -358,7 +448,8 @@ input.ant-input:-webkit-autofill:active {
     font-size: 1.1rem;
   }
   
-  .ant-layout-content {
+  .ant-layout-content,
+  .app-main-content {
     padding: 12px !important;
   }
   

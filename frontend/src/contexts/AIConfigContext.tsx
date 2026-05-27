@@ -15,7 +15,7 @@ interface AIConfigContextType {
 
 const defaultConfig: AIConfig = {
   platform: localStorage.getItem('aiPlatform') || 'aliyun',
-  model: localStorage.getItem('aiModel') || 'qwen-turbo',
+  model: localStorage.getItem('aiModel') || 'qwen3.5-plus',
   apiKey: '',
   customBaseURL: ''
 }

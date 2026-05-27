@@ -1,4 +1,5 @@
 import api from './api'
+import type { User } from '@app-types/index'
 
 export const userService = {
   // 用户注册
@@ -12,7 +13,7 @@ export const userService = {
   },
 
   // 用户登录
-  login: async (username: string, password: string) => {
+  login: async (username: string, password: string): Promise<{ token: string; userId: number; user: User }> => {
     const response = await api.post('/user/login', {
       username,
       password
@@ -21,7 +22,7 @@ export const userService = {
   },
 
   // 获取用户信息
-  getUserInfo: async () => {
+  getUserInfo: async (): Promise<User> => {
     const response = await api.get('/user/info')
     return response.data
   },

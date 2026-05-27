@@ -7,6 +7,8 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "db:init": "node scripts/initDb.js",
+    "db:migrate:rbac-usage": "node scripts/migrateRbacUsage.js",
+    "db:migrate:novel-memory": "node scripts/migrateNovelMemory.js",
     "test": "jest",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
@@ -32,6 +34,7 @@
     "@types/supertest": "^7.2.0",
     "jest": "^30.3.0",
     "nodemon": "^3.0.2",
+    "sqlite3": "^6.0.1",
     "supertest": "^7.2.2"
   }
 }

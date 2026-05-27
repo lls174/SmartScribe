@@ -1,53 +1,101 @@
-﻿﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { userService } from '@services/userService'
+import type { User } from '@app-types/index'
+
+const AUTH_USER_KEY = 'authUser'
+
+const getStoredUser = (): User | null => {
+  const raw = localStorage.getItem(AUTH_USER_KEY)
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw) as User
+  } catch {
+    localStorage.removeItem(AUTH_USER_KEY)
+    return null
+  }
+}
 
 export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return !!localStorage.getItem('token')
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(() => getStoredUser())
 
   // 检查登录状态
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem('token')
     setIsAuthenticated(!!token)
+    setUser(token ? getStoredUser() : null)
     setIsLoading(false)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setUser(null)
+      return null
+    }
+
+    const currentUser = await userService.getUserInfo()
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(currentUser))
+    setUser(currentUser)
+    return currentUser
   }, [])
 
   useEffect(() => {
     checkAuth()
+
+    if (localStorage.getItem('token')) {
+      refreshUser().catch(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem(AUTH_USER_KEY)
+        setIsAuthenticated(false)
+        setUser(null)
+      })
+    }
     
     // 监听 storage 变化，实现跨组件状态同步
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'token') {
-        checkAuth()
-      }
+    const handleAuthChange = () => {
+      checkAuth()
     }
     
-    window.addEventListener('storage', handleStorageChange)
-    
-    // 使用定时器轮询检查 token 变化（同一标签页内）
-    const interval = setInterval(() => {
-      checkAuth()
-    }, 1000)
+    window.addEventListener('storage', handleAuthChange)
+    window.addEventListener('auth-change', handleAuthChange)
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
+      window.removeEventListener('storage', handleAuthChange)
+      window.removeEventListener('auth-change', handleAuthChange)
     }
-  }, [checkAuth])
+  }, [checkAuth, refreshUser])
 
-  const login = useCallback((token: string) => {
+  const login = useCallback(async (token: string, nextUser?: User) => {
     localStorage.setItem('token', token)
     setIsAuthenticated(true)
-    // 触发 storage 事件
-    window.dispatchEvent(new Event('storage'))
+    if (nextUser) {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+      setUser(nextUser)
+    } else {
+      await refreshUser()
+    }
+    window.dispatchEvent(new Event('auth-change'))
+  }, [refreshUser])
+
+  const updateCurrentUser = useCallback((nextUser: User) => {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+    setUser(nextUser)
+    window.dispatchEvent(new Event('auth-change'))
   }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
+    localStorage.removeItem(AUTH_USER_KEY)
     setIsAuthenticated(false)
-    // 触发 storage 事件
-    window.dispatchEvent(new Event('storage'))
+    setUser(null)
+    window.dispatchEvent(new Event('auth-change'))
   }, [])
 
   return {
@@ -55,6 +103,8 @@ export const useAuth = () => {
     isLoading,
     login,
     logout,
-    user: null // 暂时返回 null，实际应用可以从 token 解析用户信息
+    refreshUser,
+    updateCurrentUser,
+    user
   }
 }

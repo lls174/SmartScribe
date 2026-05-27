@@ -1,0 +1,305 @@
+/* ===== 移动端底部导航 ===== */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bottom-nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--header-border);
+  z-index: 1000;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  max-width: 88px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 6px 8px;
+  position: relative;
+  transition: color 0.2s ease;
+  min-height: 44px;
+}
+
+.bottom-nav-icon {
+  font-size: 1.25rem;
+}
+
+.bottom-nav-item.active {
+  color: var(--primary-color);
+}
+
+.bottom-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--primary-color);
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 0 8px var(--primary-color);
+}
+
+.bottom-nav-item.active .bottom-nav-icon {
+  filter: drop-shadow(0 0 6px var(--primary-color));
+}
+
+/* ===== 移动端顶部栏 ===== */
+.mobile-top-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-top-bar {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    padding-top: env(safe-area-inset-top);
+    background: var(--mobile-header-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--header-border);
+  }
+
+  .mobile-top-bar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px 12px;
+    min-height: 52px;
+  }
+
+  .mobile-top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mobile-top-bar-logo {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', 'Rajdhani', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-decoration: none;
+    color: var(--background-darker);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 10px;
+    box-shadow: 0 0 12px var(--primary-20);
+  }
+
+  .mobile-top-bar-back {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--header-border);
+    border-radius: 10px;
+    background: var(--btn-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  .mobile-top-bar-titles {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mobile-top-bar-title {
+    margin: 0;
+    font-family: 'Orbitron', 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--primary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: none;
+    background: none;
+    -webkit-text-fill-color: unset;
+  }
+
+  .mobile-top-bar-subtitle {
+    margin: 2px 0 0;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+
+  .mobile-top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .mobile-top-bar-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    background: var(--primary-10);
+    border: 1px solid var(--primary-50);
+  }
+
+  .mobile-top-bar-action {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--header-border);
+    background: var(--btn-bg);
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    text-decoration: none;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .mobile-top-bar-action:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-50);
+  }
+
+  .mobile-top-bar-glow {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    opacity: 0.45;
+  }
+}
+
+/* ===== 布局：移动端隐藏顶栏/页脚 ===== */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+  }
+
+  .sci-fi-header {
+    display: none !important;
+  }
+
+  .app-footer {
+    display: none !important;
+  }
+
+  .app-main-content {
+    padding-top: 0 !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* 小说编辑页：为底部 AI 操作条留出空间 */
+  .app-main-content--novel-editor {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ===== 创作页 FAB ===== */
+.creation-fab {
+  display: none;
+  position: fixed;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  right: 20px;
+  width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  border-radius: 50% !important;
+  z-index: 99;
+  box-shadow: 0 4px 20px var(--primary-20);
+}
+
+@media (max-width: 768px) {
+  .creation-header .creation-button--desktop {
+    display: none !important;
+  }
+
+  .creation-fab {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ===== 个人中心快捷入口 ===== */
+.profile-shortcuts {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.profile-shortcut-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  min-height: 88px;
+}
+
+.profile-shortcut-item:hover {
+  border-color: var(--primary-50);
+  color: var(--primary-color);
+}
+
+.profile-shortcut-icon {
+  font-size: 1.5rem;
+}
+
+.profile-shortcut-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .profile-shortcuts {
+    display: grid;
+  }
+
+  /* 页面内大标题由顶部栏承接 */
+  .page-title--hide-mobile {
+    display: none !important;
+  }
+}

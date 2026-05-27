@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, Form, Input, Button, message, Tabs, Row, Col, Divider } from 'antd'
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons'
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  BookOutlined,
+  SettingOutlined,
+  CommentOutlined,
+  BulbOutlined,
+  DeleteOutlined,
+  SafetyCertificateOutlined
+} from '@ant-design/icons'
 import { userService } from '@services/userService'
 import { useAuth } from '@hooks/useAuth'
 import Loading from '@components/Loading'
@@ -10,13 +20,13 @@ import '@styles/Profile.css'
 interface UserInfo {
   id: number
   username: string
-  email: string
+  email?: string | null
   createdAt: string
 }
 
 const Profile: React.FC = () => {
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user, logout } = useAuth()
   const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [infoForm] = Form.useForm()
@@ -246,9 +256,57 @@ const Profile: React.FC = () => {
     <div className="profile-container">
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <h1 className="profile-title">个人中心</h1>
+          <h1 className="profile-title page-title--hide-mobile">个人中心</h1>
         </Col>
       </Row>
+
+      <div className="profile-shortcuts">
+        <Link to="/creation" className="profile-shortcut-item">
+          <BookOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">我的小说</span>
+        </Link>
+        <Link to="/setting" className="profile-shortcut-item">
+          <SettingOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">AI 设置</span>
+        </Link>
+        <Link to="/prompt-templates" className="profile-shortcut-item">
+          <BulbOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">模板库</span>
+        </Link>
+        <Link to="/creative" className="profile-shortcut-item">
+          <BulbOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">创意生成</span>
+        </Link>
+        <Link to="/creative-list" className="profile-shortcut-item">
+          <BulbOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">创意管理</span>
+        </Link>
+        <Link to="/feedback" className="profile-shortcut-item">
+          <CommentOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">意见反馈</span>
+        </Link>
+        <Link to="/trash" className="profile-shortcut-item">
+          <DeleteOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">回收站</span>
+        </Link>
+        {user?.role === 'admin' && (
+          <Link to="/admin" className="profile-shortcut-item">
+            <SafetyCertificateOutlined className="profile-shortcut-icon" />
+            <span className="profile-shortcut-label">管理后台</span>
+          </Link>
+        )}
+        <button
+          type="button"
+          className="profile-shortcut-item profile-shortcut-item--danger"
+          onClick={() => {
+            logout()
+            navigate('/login')
+          }}
+        >
+          <UserOutlined className="profile-shortcut-icon" />
+          <span className="profile-shortcut-label">退出登录</span>
+        </button>
+      </div>
 
       <Row gutter={[16, 16]}>
         <Col span={24}>
