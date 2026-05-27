@@ -18,7 +18,7 @@ class ContextManager {
     return text.substring(0, maxChars) + '...(内容已截断)'
   }
 
-  buildNovelContext(novelMeta, chapters, currentChapterId) {
+  buildNovelContext(novelMeta, chapters, currentChapterId, novelMemory = '') {
     const parts = []
 
     if (novelMeta) {
@@ -26,6 +26,14 @@ class ContextManager {
         priority: 10,
         content: this.formatNovelMeta(novelMeta),
         label: '小说元信息'
+      })
+    }
+
+    if (novelMemory && novelMemory.trim()) {
+      parts.push({
+        priority: 11,
+        content: novelMemory,
+        label: '小说记忆'
       })
     }
 
@@ -216,9 +224,10 @@ class ContextManager {
   }
 
   buildPolishPrompt(params) {
-    const { customPrompt } = params
+    const { customPrompt, content } = params
     let prompt = '请对以下内容进行润色优化。\n'
     if (customPrompt) prompt += `润色方向：${customPrompt}\n`
+    if (content) prompt += `\n【待润色内容】\n${content}\n`
     prompt += '注意：保持原文核心情节和风格不变，仅优化表达质量。'
     return prompt
   }

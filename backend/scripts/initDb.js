@@ -4,6 +4,11 @@ const Novel = require('../models/Novel')
 const Chapter = require('../models/Chapter')
 const Feedback = require('../models/Feedback')
 const Creative = require('../models/Creative')
+const NovelVersion = require('../models/NovelVersion')
+const GenerationHistory = require('../models/GenerationHistory')
+const AiRequestLog = require('../models/AiRequestLog')
+const CharacterCard = require('../models/CharacterCard')
+const NovelSetting = require('../models/NovelSetting')
 
 const initDatabase = async () => {
   try {
@@ -11,6 +16,18 @@ const initDatabase = async () => {
     
     await sequelize.authenticate()
     console.log('数据库连接成功')
+
+    // 触发模型加载，确保新表被纳入 sync（避免被 tree-shaking/未引用）
+    void User
+    void Novel
+    void Chapter
+    void Feedback
+    void Creative
+    void NovelVersion
+    void GenerationHistory
+    void AiRequestLog
+    void CharacterCard
+    void NovelSetting
     
     // 同步所有模型到数据库
     // force: false - 如果表已存在，不删除重建

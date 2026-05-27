@@ -1,7 +1,7 @@
-﻿const { DataTypes } = require('sequelize')
+const { DataTypes } = require('sequelize')
 const sequelize = require('../config/db')
 
-const Novel = sequelize.define('Novel', {
+const NovelVersion = sequelize.define('NovelVersion', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -15,22 +15,21 @@ const Novel = sequelize.define('Novel', {
       key: 'id'
     }
   },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  isDeleted: {
-    type: DataTypes.BOOLEAN,
+  novelId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: false
+    references: {
+      model: 'novels',
+      key: 'id'
+    }
   },
-  deletedAt: {
-    type: DataTypes.DATE,
+  label: {
+    type: DataTypes.STRING,
     allowNull: true
+  },
+  snapshot: {
+    type: DataTypes.JSON,
+    allowNull: false
   },
   createdAt: {
     type: DataTypes.DATE,
@@ -41,7 +40,8 @@ const Novel = sequelize.define('Novel', {
     defaultValue: DataTypes.NOW
   }
 }, {
-  tableName: 'novels'
+  tableName: 'novel_versions'
 })
 
-module.exports = Novel
+module.exports = NovelVersion
+

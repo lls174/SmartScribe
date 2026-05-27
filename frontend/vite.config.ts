@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
         '@types': path.resolve(__dirname, './src/types'),
         '@services': path.resolve(__dirname, './src/services'),
         '@contexts': path.resolve(__dirname, './src/contexts'),
+        path: 'path-browserify',
       },
     },
     server: {

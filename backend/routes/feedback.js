@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { Feedback } = require('../models')
-const { verifyToken } = require('../middleware/auth')
+const { verifyToken, requireAdmin } = require('../middleware/auth')
 
 /**
  * 提交反馈
@@ -32,14 +32,8 @@ router.post('/', verifyToken, async (req, res) => {
  * @description 获取所有反馈列表（管理员功能）
  * @returns {Array} - 反馈列表
  */
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // 检查管理员权限
-    const isAdmin = req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD
-    if (!isAdmin) {
-      return res.status(403).json({ message: '需要管理员权限' })
-    }
-
     const feedbacks = await Feedback.findAll({ 
       order: [['createdAt', 'DESC']]
     })

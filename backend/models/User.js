@@ -25,6 +25,24 @@ const User = sequelize.define('User', {
       isEmail: true
     }
   },
+  role: {
+    type: DataTypes.ENUM('user', 'admin'),
+    allowNull: false,
+    defaultValue: 'user'
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'banned'),
+    allowNull: false,
+    defaultValue: 'active'
+  },
+  bannedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  banReason: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

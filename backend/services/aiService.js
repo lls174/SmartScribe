@@ -3,7 +3,7 @@ const util = require('util')
 
 const PLATFORM_BASE_URLS = {
   aliyun: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-  zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+  zhipu: 'https://api.z.ai/api/paas/v4/chat/completions',
   deepseek: 'https://api.deepseek.com/v1/chat/completions',
   openai: 'https://api.openai.com/v1/chat/completions'
 }
@@ -64,7 +64,7 @@ class AIService {
     }
   }
 
-  async generateContent(prompt, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async generateContent(prompt, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     try {
       const { baseURL, apiKey } = this.getPlatformConfig(platform, aiOptions)
       console.log('API配置 - platform:', platform, 'baseURL:', baseURL, 
@@ -86,7 +86,46 @@ class AIService {
     }
   }
 
-  async callOpenAICompatibleAPI(baseURL, apiKey, prompt, model = 'qwen-turbo', onChunk) {
+  estimateTokens(text) {
+    if (!text || typeof text !== 'string') {
+      return 0
+    }
+
+    return Math.ceil(text.length / 4)
+  }
+
+  normalizeUsage(usage, prompt, content) {
+    if (usage) {
+      const promptTokens = Number(usage.prompt_tokens ?? usage.promptTokens) || 0
+      const completionTokens = Number(usage.completion_tokens ?? usage.completionTokens) || 0
+      const totalTokens = Number(usage.total_tokens ?? usage.totalTokens) || (promptTokens + completionTokens)
+
+      return {
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        isEstimated: false
+      }
+    }
+
+    const promptTokens = this.estimateTokens(prompt)
+    const completionTokens = this.estimateTokens(content)
+    return {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+      isEstimated: true
+    }
+  }
+
+  createResult(prompt, content, usage) {
+    return {
+      content,
+      usage: this.normalizeUsage(usage, prompt, content)
+    }
+  }
+
+  async callOpenAICompatibleAPI(baseURL, apiKey, prompt, model = 'qwen3.5-plus', onChunk) {
     try {
       console.log('调用AI API, baseURL:', baseURL, 'model:', model, 'stream:', !!onChunk)
       console.log('提示词长度:', prompt?.length || 0)
@@ -126,6 +165,7 @@ class AIService {
         return new Promise((resolve, reject) => {
           let fullContent = ''
           let buffer = ''
+          let usage = null
 
           response.data.on('data', (chunk) => {
             try {
@@ -141,6 +181,9 @@ class AIService {
                   if (dataStr && dataStr !== '[DONE]') {
                     try {
                       const data = JSON.parse(dataStr)
+                      if (data.usage) {
+                        usage = data.usage
+                      }
                       if (data.choices && data.choices.length > 0) {
                         const delta = data.choices[0].delta
                         if (delta && delta.content) {
@@ -166,7 +209,7 @@ class AIService {
             if (!fullContent) {
               reject(new Error('生成内容为空'))
             } else {
-              resolve(fullContent)
+              resolve(this.createResult(prompt, fullContent, usage))
             }
           })
 
@@ -181,7 +224,7 @@ class AIService {
           if (!content) {
             throw new Error('生成内容为空')
           }
-          return content
+          return this.createResult(prompt, content, response.data.usage)
         } else {
           throw new Error('生成内容为空')
         }
@@ -239,7 +282,7 @@ class AIService {
     return optimizedPrompt
   }
 
-  async generateChapter(prompt, chapterTitle, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async generateChapter(prompt, chapterTitle, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     const optimizedPrompt = this.optimizePrompt(prompt)
 
     const fullPrompt = chapterTitle
@@ -248,13 +291,13 @@ class AIService {
 
     const chapterContent = await this.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
 
-    const plotPrompt = `请为以下章节内容生成一个简洁的剧情大概（100-200字），用于后续续写：\n${chapterContent}`
+    const plotPrompt = `请为以下章节内容生成一个简洁的剧情大概（100-200字），用于后续续写：\n${chapterContent.content}`
     const plot = await this.generateContent(plotPrompt, platform, model, null, aiOptions)
 
-    return { content: chapterContent, plot: plot }
+    return { content: chapterContent.content, plot: plot.content }
   }
 
-  async continueChapter(lastContent, lastPlot, prompt, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async continueChapter(lastContent, lastPlot, prompt, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     if (!lastContent || !lastContent.trim()) {
       throw new Error('上次内容不能为空')
     }
@@ -278,13 +321,13 @@ class AIService {
 
     const continuedContent = await this.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
 
-    const newPlotPrompt = `请为以下续写内容生成一个简洁的剧情大概（100-200字），用于后续续写：\n${continuedContent}`
+    const newPlotPrompt = `请为以下续写内容生成一个简洁的剧情大概（100-200字），用于后续续写：\n${continuedContent.content}`
     const newPlot = await this.generateContent(newPlotPrompt, platform, model, null, aiOptions)
 
-    return { content: continuedContent, plot: newPlot }
+    return { content: continuedContent.content, plot: newPlot.content }
   }
 
-  async polishContent(content, prompt, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async polishContent(content, prompt, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     const fullPrompt = prompt
       ? `请润色以下内容：\n${content}\n\n要求：${prompt}`
       : `请润色以下内容，使其更加流畅、生动：\n${content}`
@@ -292,7 +335,7 @@ class AIService {
     return await this.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
   }
 
-  async generateSetting(type, prompt, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async generateSetting(type, prompt, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     let typeText = ''
     switch (type) {
       case 'character':
@@ -312,12 +355,12 @@ class AIService {
     return await this.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
   }
 
-  async generateOutline(novelType, corePlot, length, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async generateOutline(novelType, corePlot, length, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     const fullPrompt = `请为${novelType}小说生成一个大纲，核心剧情是：${corePlot}。要求${length}。`
     return await this.generateContent(fullPrompt, platform, model, onChunk, aiOptions)
   }
 
-  async generateCreative(prompt, type, platform = 'aliyun', model = 'qwen-turbo', onChunk, aiOptions = {}) {
+  async generateCreative(prompt, type, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
     return await this.generateContent(prompt, platform, model, onChunk, aiOptions)
   }
 }

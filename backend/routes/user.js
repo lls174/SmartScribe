@@ -117,14 +117,29 @@ router.post('/login',
         return res.status(401).json({ message: '用户名或密码错误' })
       }
 
+      if (user.status === 'banned') {
+        return res.status(403).json({ message: '账号已被封禁，请联系管理员' })
+      }
+
       // 验证密码
       if (!(await user.validatePassword(password))) {
         return res.status(401).json({ message: '用户名或密码错误' })
       }
 
       // 生成token
-      const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
-      res.json({ token, userId: user.id })
+      const token = jwt.sign({ userId: user.id, role: user.role }, getJwtSecret(), { expiresIn: '7d' })
+      res.json({
+        token,
+        userId: user.id,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          createdAt: user.createdAt
+        }
+      })
     } catch (error) {
       handleServerError(res, error, '登录失败')
     }
@@ -142,7 +157,7 @@ router.post('/login',
 router.get('/info', verifyToken, async (req, res) => {
   try {
     const user = await User.findByPk(req.userId, {
-      attributes: ['id', 'username', 'email', 'createdAt']
+      attributes: ['id', 'username', 'email', 'role', 'status', 'bannedAt', 'banReason', 'createdAt']
     })
     if (!user) {
       return res.status(404).json({ message: '用户不存在' })
