@@ -4,7 +4,7 @@
 
 ## 部署说明
 
-- 服务器部署文档（Linux + Nginx + PM2）：[`部署文档.md`](部署文档.md)
+- 服务器部署文档（Linux + Nginx + PM2）：[`部署文档.md`](部署文档.md)（已上线发版见文档 **§9 更新线上代码**）
 - 云端部署文档（Vercel + Render）：[`部署文档-Vercel-Render.md`](部署文档-Vercel-Render.md)
 - 后端环境变量示例：[`backend/.env.example`](backend/.env.example)
 - 前端环境变量示例：[`frontend/.env.example`](frontend/.env.example)

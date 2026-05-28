@@ -8,6 +8,7 @@ const { User } = require('../models')
 const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const { verifyToken } = require('../middleware/auth')
+const { loginRegisterLimiter } = require('../middleware/rateLimit')
 
 const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) {
@@ -52,7 +53,8 @@ const handleServerError = (res, error, message) => {
  * @param {string} confirmPassword - 确认密码（必须与密码一致）
  * @returns {Object} - 注册结果
  */
-router.post('/register', 
+router.post('/register',
+  loginRegisterLimiter,
   body('username').trim().isLength({ min: 3, max: 20 }).withMessage('用户名长度必须在3-20个字符之间'),
   body('password').isLength({ min: 6, max: 20 }).withMessage('密码长度必须在6-20个字符之间'),
   body('confirmPassword').custom((value, { req }) => {
@@ -97,7 +99,8 @@ router.post('/register',
  * @param {string} password - 密码
  * @returns {Object} - 登录结果，包含token和userId
  */
-router.post('/login', 
+router.post('/login',
+  loginRegisterLimiter,
   body('username').trim().notEmpty().withMessage('用户名不能为空'),
   body('password').notEmpty().withMessage('密码不能为空'),
   async (req, res) => {

@@ -105,17 +105,6 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 })
 
-// 登录注册接口频率限制
-const isProduction = process.env.NODE_ENV === 'production'
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 分钟
-  max: isProduction ? 5 : 50, // 本地开发放宽，避免热更新/预检误伤
-  message: { message: '登录尝试次数过多，请稍后再试' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS',
-})
-
 // 应用全局频率限制
 app.use('/api/', limiter)
 
@@ -147,7 +136,7 @@ app.use('/api/creative', csrfProtection)
 app.use('/api/admin', csrfProtection)
 
 // 应用路由和特定的频率限制
-app.use('/api/user', authLimiter, userRoutes)
+app.use('/api/user', userRoutes)
 app.use('/api/novel', novelRoutes)
 app.use('/api/ai', aiLimiter, aiRoutes)
 app.use('/api/feedback', feedbackRoutes)
