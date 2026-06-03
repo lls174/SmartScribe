@@ -31,14 +31,14 @@
 
 .novel-card {
   width: 100%;
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
+  border: 1px solid var(--header-border) !important;
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .novel-card:hover {
-  border-color: rgba(0, 212, 255, 0.5) !important;
+  border-color: var(--primary-50) !important;
 }
 
 .novel-info {
@@ -46,13 +46,13 @@
 }
 
 .novel-name {
-  color: #00d4ff !important;
+  color: var(--primary-color) !important;
   font-size: 1.2rem !important;
   margin-bottom: 0.5rem !important;
 }
 
 .novel-description {
-  color: #a5b4fc !important;
+  color: var(--text-secondary) !important;
   margin-bottom: 0.5rem !important;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .novel-date {
-  color: #c7d2fe !important;
+  color: var(--text-secondary) !important;
   font-size: 0.9rem;
 }
 
@@ -77,60 +77,119 @@
   font-weight: 500;
 }
 
+/* ===== 新建/编辑小说弹窗 ===== */
 .creation-modal .ant-modal-content {
-  background: rgba(26, 31, 58, 0.95) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent) !important;
+  border: 1px solid var(--header-border) !important;
+  border-radius: 12px !important;
 }
 
 .creation-modal .ant-modal-header {
   background: transparent !important;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-bottom: 1px solid var(--border-20) !important;
+  padding: 16px 20px !important;
 }
 
 .creation-modal .ant-modal-title {
-  color: #00d4ff !important;
+  color: var(--primary-color) !important;
+  font-weight: 600;
 }
 
-.creation-modal .ant-modal-close-x {
-  color: #a5b4fc !important;
+.creation-modal .ant-modal-close {
+  color: var(--text-secondary) !important;
 }
 
-.creation-input {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
-  color: #e0e7ff !important;
+.creation-modal .ant-modal-close:hover {
+  color: var(--primary-color) !important;
 }
 
-.creation-input:focus {
-  border-color: #00d4ff !important;
+.creation-modal .ant-modal-body {
+  padding: 20px !important;
 }
 
-.creation-input::placeholder {
-  color: #6b7280 !important;
+.creation-modal .ant-form-item-label > label {
+  color: var(--text-primary) !important;
+  font-size: 14px;
+}
+
+.creation-modal .ant-form-item-required::before {
+  color: var(--error-color) !important;
+}
+
+/* 单行与多行输入统一外观 */
+.creation-modal input.ant-input,
+.creation-modal textarea.ant-input {
+  width: 100%;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--header-border) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  font-size: 15px !important;
+  line-height: 1.5;
+  box-shadow: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.creation-modal input.ant-input {
+  min-height: 48px;
+  height: 48px !important;
+  padding: 10px 14px !important;
+}
+
+.creation-modal textarea.ant-input {
+  min-height: 120px;
+  padding: 12px 14px !important;
+  resize: vertical;
+}
+
+.creation-modal input.ant-input:hover,
+.creation-modal textarea.ant-input:hover {
+  border-color: var(--primary-50) !important;
+  box-shadow: none !important;
+}
+
+.creation-modal input.ant-input:focus,
+.creation-modal textarea.ant-input:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px var(--primary-20) !important;
+  outline: none !important;
+}
+
+.creation-modal input.ant-input::placeholder,
+.creation-modal textarea.ant-input::placeholder {
+  color: color-mix(in srgb, var(--text-secondary) 80%, transparent) !important;
+  -webkit-text-fill-color: color-mix(in srgb, var(--text-secondary) 80%, transparent) !important;
+  opacity: 1;
+}
+
+.creation-modal .ant-modal-footer,
+.creation-modal .ant-form-item:last-child {
+  margin-bottom: 0;
 }
 
 .ant-popover-inner {
-  background: rgba(26, 31, 58, 0.95) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: color-mix(in srgb, var(--surface-color) 95%, transparent) !important;
+  border: 1px solid var(--header-border) !important;
 }
 
 .ant-popover-message-title {
-  color: #e0e7ff !important;
+  color: var(--text-primary) !important;
 }
 
 .ant-popover-buttons button {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
-  color: #e0e7ff !important;
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--header-border) !important;
+  color: var(--text-primary) !important;
 }
 
 .ant-popover-buttons button:hover {
-  border-color: #00d4ff !important;
-  color: #00d4ff !important;
+  border-color: var(--primary-50) !important;
+  color: var(--primary-color) !important;
 }
 
 .ant-popover-buttons .ant-btn-primary {
-  background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
   border: none !important;
   color: #ffffff !important;
 }

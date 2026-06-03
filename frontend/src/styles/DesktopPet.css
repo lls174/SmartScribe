@@ -1,15 +1,15 @@
 ﻿.desktop-pet {
   position: fixed;
-  right: -120px;
+  right: -65px;
   bottom: 16px;
-  width: 420px;
+  width: 260px;
   height: 560px;
   z-index: 1000;
   touch-action: none;
 }
 
 .desktop-pet__frame {
-  width: 420px;
+  width: 260px;
   height: 560px;
   border-radius: 0;
   border: none;
@@ -22,7 +22,7 @@
 }
 
 .desktop-pet__live2d {
-  width: 420px;
+  width: 260px;
   height: 560px;
   pointer-events: auto;
 }
@@ -34,8 +34,8 @@
 .desktop-pet__close {
   position: absolute;
   top: 10px;
-  /* .desktop-pet 右侧有 -120px 偏移，按钮需要避开屏幕外区域 */
-  right: 140px;
+  /* .desktop-pet 右侧有 -65px 偏移，按钮需要避开屏幕外区域 */
+  right: 85px;
   z-index: 10000;
   padding: 6px 10px;
   border: 1px solid rgba(255, 255, 255, 0.35);

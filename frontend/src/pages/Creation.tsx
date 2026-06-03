@@ -168,13 +168,13 @@ const Creation: React.FC = () => {
             name="name"
             rules={[{ required: true, message: '请输入小说名称' }]}
           >
-            <Input placeholder="请输入小说名称" className="creation-input" />
+            <Input placeholder="请输入小说名称" />
           </Form.Item>
           <Form.Item
             label="小说简介"
             name="description"
           >
-            <Input.TextArea placeholder="请输入小说简介（选填）" rows={4} className="creation-input" />
+            <Input.TextArea placeholder="请输入小说简介（选填）" rows={4} />
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
@@ -201,13 +201,13 @@ const Creation: React.FC = () => {
             name="name"
             rules={[{ required: true, message: '请输入小说名称' }]}
           >
-            <Input placeholder="请输入小说名称" className="creation-input" />
+            <Input placeholder="请输入小说名称" />
           </Form.Item>
           <Form.Item
             label="小说简介"
             name="description"
           >
-            <Input.TextArea placeholder="请输入小说简介（选填）" rows={4} className="creation-input" />
+            <Input.TextArea placeholder="请输入小说简介（选填）" rows={4} />
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>

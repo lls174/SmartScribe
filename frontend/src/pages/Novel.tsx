@@ -59,6 +59,20 @@ const Novel: React.FC = () => {
   const [settingForm] = Form.useForm()
   const editorRef = useRef<Editor>(null)
   const appliedTemplateRef = useRef<string | null>(null)
+  const generatingRef = useRef<HTMLDivElement>(null)
+  const chapterContentRef = useRef<HTMLDivElement>(null)
+  const streamEndRef = useRef<HTMLDivElement>(null)
+  const pendingScrollToChapterRef = useRef(false)
+  const autoFollowRef = useRef(true)
+  const lastScrollYRef = useRef(0)
+
+  const scrollToElement = (element: HTMLElement | null, behavior: ScrollBehavior = 'smooth') => {
+    if (!element) return
+
+    requestAnimationFrame(() => {
+      element.scrollIntoView({ behavior, block: 'start' })
+    })
+  }
   const isMobile = useMediaQuery('(max-width: 768px)')
 
   const buildNovelContext = (): NovelContext => {
@@ -91,6 +105,49 @@ const Novel: React.FC = () => {
       fetchNovelMemory()
     }
   }, [id, isAuthenticated, authLoading, navigate])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY
+      if (currentY < lastScrollYRef.current - 4) {
+        // 用户向上滚动，停止自动跟随
+        autoFollowRef.current = false
+      } else {
+        // 滚回接近底部时恢复自动跟随
+        const distanceToBottom =
+          document.documentElement.scrollHeight - window.innerHeight - currentY
+        if (distanceToBottom < 160) {
+          autoFollowRef.current = true
+        }
+      }
+      lastScrollYRef.current = currentY
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    if (loading) {
+      autoFollowRef.current = true
+      lastScrollYRef.current = window.scrollY
+      requestAnimationFrame(() => {
+        streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      })
+    }
+  }, [loading])
+
+  useEffect(() => {
+    if (loading && autoFollowRef.current) {
+      streamEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+    }
+  }, [generatedContent, loading])
+
+  useEffect(() => {
+    if (!loading && currentChapter && pendingScrollToChapterRef.current) {
+      pendingScrollToChapterRef.current = false
+      scrollToElement(chapterContentRef.current, 'smooth')
+    }
+  }, [loading, currentChapter])
 
   const fetchNovelMemory = async () => {
     if (!id) return
@@ -436,6 +493,7 @@ const Novel: React.FC = () => {
     setModalVisible(false)
     // 显示loading状态
     setLoading(true)
+    pendingScrollToChapterRef.current = true
     setGeneratedContent('')
     try {
       const contentState = editorState.getCurrentContent()
@@ -554,6 +612,7 @@ const Novel: React.FC = () => {
         await handleSaveChapter(result.content, result.plot)
       }
     } catch (error) {
+      pendingScrollToChapterRef.current = false
       console.error('生成失败:', error)
       // 显示更具体的错误信息
       let errorMessage = '生成失败'
@@ -667,7 +726,7 @@ const Novel: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <Row justify="space-between" align="middle">
                 <Col>
-                  <span style={{ color: 'var(--text-secondary)' }}>
+                  <span className="novel-memory-hint">
                     生成、续写、润色时会自动注入已启用的人物卡。
                   </span>
                 </Col>
@@ -694,19 +753,25 @@ const Novel: React.FC = () => {
                   >
                     <List.Item.Meta
                       title={(
-                        <Space wrap>
-                          <span>{card.name}</span>
-                          {card.role && <Tag color="blue">{card.role}</Tag>}
-                          <Tag>优先级 {card.priority}</Tag>
-                          {!card.isActive && <Tag color="default">未启用</Tag>}
+                        <Space wrap className="novel-memory-char-tags">
+                          <span className="novel-memory-char-name">{card.name}</span>
+                          {card.role && (
+                            <span className="novel-memory-tag novel-memory-tag--role">{card.role}</span>
+                          )}
+                          <span className="novel-memory-tag novel-memory-tag--priority">
+                            优先级 {card.priority}
+                          </span>
+                          {!card.isActive && (
+                            <span className="novel-memory-tag novel-memory-tag--inactive">未启用</span>
+                          )}
                         </Space>
                       )}
                       description={(
-                        <Space direction="vertical" size={4}>
-                          {card.identity && <span>身份：{card.identity}</span>}
-                          {card.personality && <span>性格：{card.personality}</span>}
-                          {card.relationship && <span>关系：{card.relationship}</span>}
-                        </Space>
+                        <div className="novel-memory-char-desc">
+                          {card.identity && <div>身份：{card.identity}</div>}
+                          {card.personality && <div>性格：{card.personality}</div>}
+                          {card.relationship && <div>关系：{card.relationship}</div>}
+                        </div>
                       )}
                     />
                   </List.Item>
@@ -982,7 +1047,7 @@ const Novel: React.FC = () => {
       </Row>
 
       <Card
-        className="novel-memory-card--desktop"
+        className="novel-memory-card--desktop novel-memory-panel"
         title="小说记忆"
         loading={memoryLoading}
         style={{ marginBottom: '1.5rem' }}
@@ -991,7 +1056,7 @@ const Novel: React.FC = () => {
       </Card>
 
       <Collapse
-        className="novel-memory-collapse"
+        className="novel-memory-collapse novel-memory-panel"
         items={[{
           key: 'memory',
           label: `小说记忆${memoryLoading ? '（加载中）' : ''}`,
@@ -1037,7 +1102,7 @@ const Novel: React.FC = () => {
       {currentChapter && !loading && (
         <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
           <Col span={24}>
-            <div className="novel-editor-container">
+            <div className="novel-editor-container" ref={chapterContentRef}>
               <Row justify="space-between" align="middle" style={{ marginBottom: '1rem' }}>
                 <Title level={4}>{currentChapter.title || '未命名章节'}</Title>
                 <Space>
@@ -1094,7 +1159,7 @@ const Novel: React.FC = () => {
       {loading && (
         <Row style={{ marginTop: '2rem' }}>
           <Col span={24}>
-            <div className="novel-generating">
+            <div className="novel-generating" ref={generatingRef}>
               <Title level={4} className="novel-generating-title">
                 ✨ 正在生成内容...
               </Title>
@@ -1108,6 +1173,7 @@ const Novel: React.FC = () => {
                   <span className="novel-generating-waiting">等待AI响应中...</span>
                 )}
               </div>
+              <div ref={streamEndRef} className="novel-stream-anchor" aria-hidden="true" />
             </div>
           </Col>
         </Row>

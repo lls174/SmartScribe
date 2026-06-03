@@ -228,6 +228,11 @@
   .app-main-content--novel-editor {
     padding-bottom: calc(128px + env(safe-area-inset-bottom)) !important;
   }
+
+  /* 流式跟随时，最新内容停在底部固定栏上方 */
+  .novel-stream-anchor {
+    scroll-margin-bottom: calc(140px + env(safe-area-inset-bottom));
+  }
 }
 
 /* ===== 创作页 FAB ===== */

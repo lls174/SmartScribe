@@ -139,6 +139,11 @@
   font-style: italic;
 }
 
+.novel-stream-anchor {
+  height: 1px;
+  scroll-margin-bottom: 24px;
+}
+
 .novel-empty-state {
   border: 1px dashed var(--header-border);
   border-radius: 8px;
@@ -195,6 +200,144 @@
   100% {
     transform: translateX(100%);
   }
+}
+
+/* 小说记忆面板 */
+.novel-memory-panel.ant-card {
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
+  border: 1px solid var(--header-border) !important;
+  border-radius: 12px !important;
+}
+
+.novel-memory-panel .ant-card-head {
+  border-bottom: 1px solid var(--border-20) !important;
+}
+
+.novel-memory-panel .ant-card-head-title {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.novel-memory-panel .ant-tabs-tab {
+  color: var(--text-secondary) !important;
+}
+
+.novel-memory-panel .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--primary-color) !important;
+  text-shadow: none;
+}
+
+.novel-memory-panel .ant-tabs-ink-bar {
+  background: var(--primary-color) !important;
+}
+
+.novel-memory-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.novel-memory-panel .ant-list-item {
+  border-bottom: 1px solid var(--border-20) !important;
+  padding: 14px 0 !important;
+}
+
+.novel-memory-panel .ant-list-item:last-child {
+  border-bottom: none !important;
+}
+
+.novel-memory-panel .ant-list-item-meta-title {
+  color: var(--text-primary) !important;
+  margin-bottom: 6px !important;
+}
+
+.novel-memory-char-tags {
+  align-items: center;
+}
+
+.novel-memory-char-name {
+  color: var(--primary-color) !important;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.novel-memory-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.novel-memory-tag--role {
+  color: var(--primary-color) !important;
+  background: var(--primary-10);
+  border: 1px solid var(--primary-50);
+}
+
+.novel-memory-tag--priority {
+  color: var(--secondary-color) !important;
+  background: color-mix(in srgb, var(--secondary-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary-color) 45%, transparent);
+}
+
+html[data-theme='warm-light'] .novel-memory-tag--role,
+html[data-theme='warm-light'] .novel-memory-tag--priority {
+  color: color-mix(in srgb, var(--text-primary) 90%, var(--primary-color)) !important;
+}
+
+.novel-memory-tag--inactive {
+  color: var(--text-secondary) !important;
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--border-20) !important;
+}
+
+.novel-memory-char-desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.novel-memory-char-desc > div {
+  color: var(--text-secondary);
+}
+
+.novel-memory-panel .ant-list-item-meta-description {
+  color: var(--text-secondary) !important;
+}
+
+.novel-memory-panel .ant-list-item-action .ant-btn-link:not(.ant-btn-dangerous) {
+  color: var(--primary-color) !important;
+}
+
+.novel-memory-panel .ant-list-item-action .ant-btn-link.ant-btn-dangerous {
+  color: var(--error-color) !important;
+}
+
+.novel-memory-panel .ant-form-item-label > label {
+  color: var(--text-primary) !important;
+}
+
+.novel-memory-panel textarea.ant-input,
+.novel-memory-panel input.ant-input {
+  background: var(--input-bg) !important;
+  border: 1px solid var(--header-border) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  font-size: 14px;
+}
+
+.novel-memory-panel textarea.ant-input::placeholder,
+.novel-memory-panel input.ant-input::placeholder {
+  color: color-mix(in srgb, var(--text-secondary) 75%, transparent) !important;
+}
+
+.novel-memory-panel .ant-form-item-extra,
+.novel-memory-panel span[style*='text-secondary'] {
+  color: var(--text-secondary) !important;
 }
 
 .novel-chapters-collapse {

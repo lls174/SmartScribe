@@ -4,7 +4,6 @@ import { Live2DCubismModel } from 'live2d-renderer'
 
 const LS_KEY_ENABLED = 'desktopPetEnabled'
 const MOTION_PRIORITY_NORMAL = 2
-const MOTION_PRIORITY_FORCE = 3
 
 type MotionRequest = {
   group: string
@@ -141,7 +140,7 @@ export default function DesktopPet() {
     const mount = stageRef.current
     if (!mount) return
 
-    const width = 420
+    const width = 260
     const height = 560
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const modelUrl = '/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json?v=renderer-webgl-1'
@@ -257,15 +256,9 @@ export default function DesktopPet() {
     }
 
     setShowClose(false)
-    const model = modelRef.current
-    const played = playMotion(model, 'Bye', 0, MOTION_PRIORITY_FORCE)
-    const delay = played ? 3200 : 300
-
     if (goodbyeTimerRef.current) window.clearTimeout(goodbyeTimerRef.current)
-    goodbyeTimerRef.current = window.setTimeout(() => {
-      setHidden(true)
-      goodbyeTimerRef.current = null
-    }, delay)
+    goodbyeTimerRef.current = null
+    setHidden(true)
   }
 
   return (
