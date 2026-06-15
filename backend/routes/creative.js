@@ -1,109 +1,83 @@
 const express = require('express')
 const router = express.Router()
 const creativeService = require('../services/creativeService')
-const { body, validationResult } = require('express-validator')
+const { body } = require('express-validator')
 const { verifyToken } = require('../middleware/auth')
+const { validateRequest } = require('../middleware/validate')
+const { asyncHandler } = require('../utils/asyncHandler')
+const { parsePagination } = require('../utils/pagination')
+const { NOT_FOUND } = require('../constants/messages')
 
-router.post('/create', 
+router.post('/create',
   verifyToken,
   body('title').trim().notEmpty().withMessage('标题不能为空'),
   body('type').trim().notEmpty().withMessage('类型不能为空'),
   body('content').trim().notEmpty().withMessage('内容不能为空'),
   body('genre').optional().trim(),
-  async (req, res) => {
-    try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
+  validateRequest,
+  asyncHandler(async (req, res) => {
+    const { title, type, genre, content } = req.body
+    const creative = await creativeService.createCreative(req.userId, title, type, genre, content)
 
-      const { title, type, genre, content } = req.body
-      const creative = await creativeService.createCreative(req.userId, title, type, genre, content)
-      
-      res.status(201).json({ message: '创意保存成功', creative })
-    } catch (error) {
-      console.error('保存创意失败:', error)
-      res.status(500).json({ message: '保存创意失败' })
-    }
-  }
+    res.status(201).json({ message: '创意保存成功', creative })
+  }, '保存创意失败')
 )
 
-router.get('/list', 
+router.get('/list',
   verifyToken,
-  async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1
-      const limit = parseInt(req.query.limit) || 10
-      
-      const result = await creativeService.getCreativesByUserId(req.userId, page, limit)
-      res.json(result)
-    } catch (error) {
-      console.error('获取创意列表失败:', error)
-      res.status(500).json({ message: '获取创意列表失败' })
-    }
-  }
+  asyncHandler(async (req, res) => {
+    const { page, limit } = parsePagination(req, { defaultLimit: 10 })
+
+    const result = await creativeService.getCreativesByUserId(req.userId, page, limit)
+    res.json(result)
+  }, '获取创意列表失败')
 )
 
-router.get('/:id', 
+router.get('/:id',
   verifyToken,
-  async (req, res) => {
-    try {
-      const { id } = req.params
-      const creative = await creativeService.getCreativeById(id, req.userId)
-      
-      if (!creative) {
-        return res.status(404).json({ message: '创意不存在' })
-      }
-      
-      res.json(creative)
-    } catch (error) {
-      console.error('获取创意详情失败:', error)
-      res.status(500).json({ message: '获取创意详情失败' })
+  asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const creative = await creativeService.getCreativeById(id, req.userId)
+
+    if (!creative) {
+      return res.status(404).json({ message: NOT_FOUND.CREATIVE })
     }
-  }
+
+    res.json(creative)
+  }, '获取创意详情失败')
 )
 
-router.put('/:id', 
+router.put('/:id',
   verifyToken,
   body('title').optional().trim(),
   body('content').optional().trim(),
   body('genre').optional().trim(),
-  async (req, res) => {
-    try {
-      const { id } = req.params
-      const { title, content, genre } = req.body
-      
-      const updated = await creativeService.updateCreative(id, req.userId, { title, content, genre })
-      
-      if (updated) {
-        res.json({ message: '创意更新成功' })
-      } else {
-        res.status(404).json({ message: '创意不存在' })
-      }
-    } catch (error) {
-      console.error('更新创意失败:', error)
-      res.status(500).json({ message: '更新创意失败' })
+  asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const { title, content, genre } = req.body
+
+    const updated = await creativeService.updateCreative(id, req.userId, { title, content, genre })
+
+    if (updated) {
+      res.json({ message: '创意更新成功' })
+    } else {
+      res.status(404).json({ message: NOT_FOUND.CREATIVE })
     }
-  }
+  }, '更新创意失败')
 )
 
-router.delete('/:id', 
+router.delete('/:id',
   verifyToken,
-  async (req, res) => {
-    try {
-      const { id } = req.params
-      const deleted = await creativeService.deleteCreative(id, req.userId)
-      
-      if (deleted) {
-        res.json({ message: '创意删除成功' })
-      } else {
-        res.status(404).json({ message: '创意不存在' })
-      }
-    } catch (error) {
-      console.error('删除创意失败:', error)
-      res.status(500).json({ message: '删除创意失败' })
+  asyncHandler(async (req, res) => {
+    const { id } = req.params
+    const deleted = await creativeService.deleteCreative(id, req.userId)
+
+    if (deleted) {
+      res.json({ message: '创意删除成功' })
+    } else {
+      res.status(404).json({ message: NOT_FOUND.CREATIVE })
     }
-  }
+  }, '删除创意失败')
 )
 
 module.exports = router

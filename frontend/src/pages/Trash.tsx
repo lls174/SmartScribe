@@ -1,28 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Card, Button, Table, Space, message, Tabs, Tag, Modal } from 'antd'
 import { RollbackOutlined, DeleteOutlined, BookOutlined, FileTextOutlined } from '@ant-design/icons'
 import { novelService } from '@services/novelService'
-import { useAuth } from '@hooks/useAuth'
+import { useRequireAuth } from '@hooks/useRequireAuth'
+import { formatDateTime, getApiErrorMessage } from '@utils/index'
 import Loading from '@components/Loading'
 import type { DeletedChapter, DeletedNovel } from '@app-types/index'
 import '@styles/Trash.css'
 
 const Trash: React.FC = () => {
-  const navigate = useNavigate()
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isReady } = useRequireAuth()
   const [loading, setLoading] = useState(false)
   const [deletedNovels, setDeletedNovels] = useState<DeletedNovel[]>([])
   const [deletedChapters, setDeletedChapters] = useState<DeletedChapter[]>([])
 
   useEffect(() => {
-    if (authLoading) return
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
+    if (isReady) {
+      fetchTrashItems()
     }
-    fetchTrashItems()
-  }, [isAuthenticated, authLoading, navigate])
+  }, [isReady])
 
   const fetchTrashItems = async () => {
     try {
@@ -35,7 +31,7 @@ const Trash: React.FC = () => {
       setDeletedChapters(chapters)
     } catch (error) {
       console.error('获取回收站失败:', error)
-      message.error('获取回收站失败')
+      message.error(getApiErrorMessage(error, '获取回收站失败'))
     } finally {
       setLoading(false)
     }
@@ -48,7 +44,7 @@ const Trash: React.FC = () => {
       fetchTrashItems()
     } catch (error) {
       console.error('恢复小说失败:', error)
-      message.error('恢复小说失败')
+      message.error(getApiErrorMessage(error, '恢复小说失败'))
     }
   }
 
@@ -66,7 +62,7 @@ const Trash: React.FC = () => {
           fetchTrashItems()
         } catch (error) {
           console.error('永久删除小说失败:', error)
-          message.error('永久删除小说失败')
+          message.error(getApiErrorMessage(error, '永久删除小说失败'))
         }
       }
     })
@@ -79,7 +75,7 @@ const Trash: React.FC = () => {
       fetchTrashItems()
     } catch (error) {
       console.error('恢复章节失败:', error)
-      message.error('恢复章节失败')
+      message.error(getApiErrorMessage(error, '恢复章节失败'))
     }
   }
 
@@ -97,7 +93,7 @@ const Trash: React.FC = () => {
           fetchTrashItems()
         } catch (error) {
           console.error('永久删除章节失败:', error)
-          message.error('永久删除章节失败')
+          message.error(getApiErrorMessage(error, '永久删除章节失败'))
         }
       }
     })
@@ -121,7 +117,7 @@ const Trash: React.FC = () => {
       title: '删除时间',
       dataIndex: 'deletedAt',
       key: 'deletedAt',
-      render: (text: string) => new Date(text).toLocaleString()
+      render: (text: string) => formatDateTime(text, '')
     },
     {
       title: '操作',
@@ -169,7 +165,7 @@ const Trash: React.FC = () => {
       title: '删除时间',
       dataIndex: 'deletedAt',
       key: 'deletedAt',
-      render: (text: string) => new Date(text).toLocaleString()
+      render: (text: string) => formatDateTime(text, '')
     },
     {
       title: '操作',

@@ -30,7 +30,15 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: devApiTarget,
           changeOrigin: true,
-          secure: false
+          secure: false,
+          configure: (proxy) => {
+            proxy.on('proxyRes', (proxyRes, req) => {
+              if (req.url?.includes('/ai/')) {
+                proxyRes.headers['cache-control'] = 'no-cache, no-transform'
+                proxyRes.headers['x-accel-buffering'] = 'no'
+              }
+            })
+          }
         }
       }
     },

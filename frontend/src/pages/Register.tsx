@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Button, Form, Input, Typography, Card, Alert } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import { userService } from '@services/userService'
+import { getApiErrorMessage } from '@utils/index'
 import '@styles/Login.css'
 
 const { Title } = Typography
@@ -17,8 +18,8 @@ const Register: React.FC = () => {
     try {
       await userService.register(values.username, values.password, values.confirmPassword)
       navigate('/login')
-    } catch (err: any) {
-      setError(err.response?.data?.message || '注册失败')
+    } catch (err) {
+      setError(getApiErrorMessage(err, '注册失败'))
     } finally {
       setLoading(false)
     }

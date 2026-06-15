@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Col, Modal, Row, Space, Table, Tag, Typography, message } from 'antd'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { novelService } from '@services/novelService'
+import { useNovelId } from '@hooks/useNovelId'
+import { usePagination } from '@hooks/usePagination'
+import { useModal } from '@hooks/useModal'
+import { formatDateTime, getApiErrorMessage } from '@utils/index'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -14,22 +18,20 @@ const actionLabel = (action: string) => {
 }
 
 const NovelHistory: React.FC = () => {
-  const { id } = useParams<{ id: string }>()
+  const { id, novelId, isValid } = useNovelId()
   const navigate = useNavigate()
-  const novelId = Number(id)
 
   const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const { page, limit, getTablePagination } = usePagination(20)
   const [total, setTotal] = useState(0)
   const [histories, setHistories] = useState<any[]>([])
   const [novel, setNovel] = useState<any>(null)
 
-  const [viewOpen, setViewOpen] = useState(false)
+  const viewModal = useModal()
   const [viewing, setViewing] = useState<any>(null)
 
   const load = async () => {
-    if (!Number.isFinite(novelId)) return
+    if (!isValid) return
     setLoading(true)
     try {
       const [novelData, historyData] = await Promise.all([
@@ -41,7 +43,7 @@ const NovelHistory: React.FC = () => {
       setTotal(historyData.total)
     } catch (e) {
       console.error(e)
-      message.error('加载生成历史失败')
+      message.error(getApiErrorMessage(e, '加载生成历史失败'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +76,7 @@ const NovelHistory: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 190,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-'
+      render: (v: string) => formatDateTime(v)
     },
     {
       title: '操作',
@@ -83,14 +85,14 @@ const NovelHistory: React.FC = () => {
         <Space>
           <Button type="text" onClick={() => {
             setViewing(record)
-            setViewOpen(true)
+            viewModal.show()
           }}>
             查看详情
           </Button>
         </Space>
       )
     }
-  ]), [])
+  ]), [viewModal])
 
   return (
     <div style={{ padding: 24 }}>
@@ -114,22 +116,14 @@ const NovelHistory: React.FC = () => {
           loading={loading}
           columns={columns as any}
           dataSource={histories.map(h => ({ ...h, key: h.id }))}
-          pagination={{
-            total,
-            current: page,
-            pageSize: limit,
-            onChange: (p) => setPage(p),
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-            onShowSizeChange: (_, ps) => setLimit(ps)
-          }}
+          pagination={getTablePagination(total)}
         />
       </Card>
 
       <Modal
         title={viewing ? `${actionLabel(viewing.action).text}（#${viewing.id}）` : '详情'}
-        open={viewOpen}
-        onCancel={() => setViewOpen(false)}
+        open={viewModal.open}
+        onCancel={viewModal.hide}
         width={900}
         footer={null}
       >

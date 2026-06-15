@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
+import { AI_ENABLE_DEEP_THINKING_KEY, readStoredAiConfig } from '@/data/aiModelCatalog'
 
 export interface AIConfig {
   platform: string
   model: string
-  apiKey: string
-  customBaseURL: string
+  enableDeepThinking: boolean
 }
 
 interface AIConfigContextType {
@@ -13,12 +13,7 @@ interface AIConfigContextType {
   getFullConfig: () => AIConfig
 }
 
-const defaultConfig: AIConfig = {
-  platform: localStorage.getItem('aiPlatform') || 'aliyun',
-  model: localStorage.getItem('aiModel') || 'qwen3.5-plus',
-  apiKey: '',
-  customBaseURL: ''
-}
+const defaultConfig: AIConfig = readStoredAiConfig()
 
 const AIConfigContext = createContext<AIConfigContextType>({
   config: defaultConfig,
@@ -37,6 +32,9 @@ export const AIConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       if (partial.model) {
         localStorage.setItem('aiModel', partial.model)
+      }
+      if (typeof partial.enableDeepThinking === 'boolean') {
+        localStorage.setItem(AI_ENABLE_DEEP_THINKING_KEY, partial.enableDeepThinking ? 'true' : 'false')
       }
       return newConfig
     })

@@ -404,6 +404,67 @@
   color: color-mix(in srgb, var(--text-secondary) 70%, transparent) !important;
 }
 
+.setting-form .setting-api-key-display.ant-input-affix-wrapper {
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-color) 6%, var(--input-bg)) !important;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, var(--header-border)) !important;
+  cursor: default;
+}
+
+.setting-form .setting-api-key-display .ant-input {
+  min-height: 46px;
+  padding: 10px 0;
+  font-size: 15px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.02em;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  cursor: default;
+}
+
+.setting-api-key-display__icon {
+  color: #52c41a;
+  font-size: 16px;
+}
+
+.setting-api-key-change-btn {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.setting-api-key-change-btn:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+.setting-api-key-cancel-btn {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.setting-api-key-cancel-btn:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
 .setting-form .ant-form-item-label > label {
   font-size: 14px;
   height: auto;

@@ -3,6 +3,7 @@ import { Button, Form, Input, Typography, Card, Alert } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import { userService } from '@services/userService'
 import { useAuth } from '@hooks/useAuth'
+import { getApiErrorMessage } from '@utils/index'
 import '@styles/Login.css'
 
 const { Title } = Typography
@@ -20,8 +21,8 @@ const Login: React.FC = () => {
       const response = await userService.login(values.username, values.password)
       await login(response.token, response.user)
       navigate('/creation')
-    } catch (err: any) {
-      setError(err.response?.data?.message || '登录失败')
+    } catch (err) {
+      setError(getApiErrorMessage(err, '登录失败'))
     } finally {
       setLoading(false)
     }

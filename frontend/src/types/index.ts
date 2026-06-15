@@ -1,3 +1,4 @@
+export * from '../../../shared/types'
 export interface User {
   id: number
   username: string

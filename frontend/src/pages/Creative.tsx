@@ -3,39 +3,34 @@ import { Button, Typography, Card, Row, Col, Space, Form, Select, message, Spin,
 import { aiService } from '@services/aiService'
 import { creativeApi } from '@services/api'
 import { useAIConfig } from '@contexts/AIConfigContext'
+import { CREATIVE_TYPES, NOVEL_GENRES } from '@/data/creativeConstants'
+import { useModal } from '@hooks/useModal'
+import { getApiErrorMessage } from '@utils/index'
+import { getAiStreamPhaseLabel } from '@utils/aiStream'
+import type { AiStreamPhase } from '@app-types/index'
 import '@styles/Creative.css'
 
 const { Title, Paragraph } = Typography
 const { Option } = Select
 
+const creativeTypes = CREATIVE_TYPES
+const genres = NOVEL_GENRES
+
 const Creative: React.FC = () => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [streamPhase, setStreamPhase] = useState<AiStreamPhase>('waiting')
   const { config } = useAIConfig()
   const [result, setResult] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'trend' | 'theme' | 'element'>('trend')
-  const [saveModalVisible, setSaveModalVisible] = useState(false)
+  const saveModal = useModal()
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveForm] = Form.useForm()
   const [formValues, setFormValues] = useState<any>({})
 
-  const creativeTypes = [
-    { value: 'trend', label: '流行趋势' },
-    { value: 'theme', label: '热门题材' },
-    { value: 'element', label: '创意元素' }
-  ]
-
-  const genres = [
-    { value: 'xuanhuan', label: '玄幻' },
-    { value: 'xianxia', label: '仙侠' },
-    { value: 'dushi', label: '都市' },
-    { value: 'lishi', label: '历史' },
-    { value: 'kehuan', label: '科幻' },
-    { value: 'yanqing', label: '言情' }
-  ]
-
   const onFinish = async (values: any) => {
     setLoading(true)
+    setStreamPhase('waiting')
     setResult('')
     setFormValues(values)
     try {
@@ -60,6 +55,7 @@ const Creative: React.FC = () => {
           }
           setResult(prev => prev + chunk)
         },
+        setStreamPhase,
         () => {
           message.success('创意生成成功')
         },
@@ -69,7 +65,7 @@ const Creative: React.FC = () => {
       setResult(fullContent)
     } catch (error) {
       console.error('生成创意失败:', error)
-      message.error('生成创意失败')
+      message.error(getApiErrorMessage(error, '生成创意失败'))
     } finally {
       setLoading(false)
     }
@@ -85,11 +81,11 @@ const Creative: React.FC = () => {
         content: result
       })
       message.success('创意保存成功')
-      setSaveModalVisible(false)
+      saveModal.hide()
       saveForm.resetFields()
     } catch (error) {
       console.error('保存创意失败:', error)
-      message.error('保存创意失败')
+      message.error(getApiErrorMessage(error, '保存创意失败'))
     } finally {
       setSaveLoading(false)
     }
@@ -143,17 +139,17 @@ const Creative: React.FC = () => {
         </Form>
       </Card>
 
-      {loading && (
+      {loading && !result && (
         <Card className="creative-loading-card">
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <Spin size="large" />
-            <p style={{ marginTop: 16, color: '#a5b4fc' }}>正在生成创意...</p>
+            <p style={{ marginTop: 16, color: '#a5b4fc' }}>{getAiStreamPhaseLabel(streamPhase)}</p>
           </div>
         </Card>
       )}
 
       {result && (
-        <Card className="creative-result-card" title="✨ 创意结果">
+        <Card className="creative-result-card" title={loading ? `✨ ${getAiStreamPhaseLabel(streamPhase)}` : '✨ 创意结果'}>
           <div className="creative-result-content">
             {result}
             {loading && <span className="streaming-cursor"></span>}
@@ -161,7 +157,7 @@ const Creative: React.FC = () => {
           <div style={{ marginTop: '1rem', textAlign: 'right' }}>
             <Button 
               type="primary" 
-              onClick={() => setSaveModalVisible(true)}
+              onClick={saveModal.show}
               disabled={loading}
             >
               保存创意
@@ -173,8 +169,8 @@ const Creative: React.FC = () => {
       {/* 保存创意模态框 */}
       <Modal
         title="保存创意"
-        open={saveModalVisible}
-        onCancel={() => setSaveModalVisible(false)}
+        open={saveModal.open}
+        onCancel={saveModal.hide}
         footer={null}
       >
         <Form
@@ -192,7 +188,7 @@ const Creative: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setSaveModalVisible(false)}>
+              <Button onClick={saveModal.hide}>
                 取消
               </Button>
               <Button type="primary" htmlType="submit" loading={saveLoading}>

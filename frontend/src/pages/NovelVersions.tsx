@@ -1,39 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Col, Form, Input, Modal, Popconfirm, Row, Space, Table, Tag, Typography, message } from 'antd'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { novelService } from '@services/novelService'
+import { useNovelId } from '@hooks/useNovelId'
+import { useModal } from '@hooks/useModal'
+import { formatDateTime, getApiErrorMessage, safeStringify } from '@utils/index'
 
 const { Title, Paragraph, Text } = Typography
 
-const safeStringify = (value: any) => {
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
-  }
-}
-
 const NovelVersions: React.FC = () => {
-  const { id } = useParams<{ id: string }>()
+  const { id, novelId, isValid } = useNovelId()
   const navigate = useNavigate()
-  const novelId = Number(id)
 
   const [loading, setLoading] = useState(false)
   const [versions, setVersions] = useState<any[]>([])
   const [novel, setNovel] = useState<any>(null)
 
-  const [createOpen, setCreateOpen] = useState(false)
+  const createModal = useModal()
   const [createForm] = Form.useForm()
 
-  const [compareOpen, setCompareOpen] = useState(false)
+  const compareModal = useModal()
   const [left, setLeft] = useState<any>(null)
   const [right, setRight] = useState<any>(null)
 
-  const [viewOpen, setViewOpen] = useState(false)
+  const viewModal = useModal()
   const [viewing, setViewing] = useState<any>(null)
 
   const load = async () => {
-    if (!Number.isFinite(novelId)) return
+    if (!isValid) return
     setLoading(true)
     try {
       const [novelData, versionData] = await Promise.all([
@@ -44,7 +38,7 @@ const NovelVersions: React.FC = () => {
       setVersions(versionData)
     } catch (e) {
       console.error(e)
-      message.error('加载版本列表失败')
+      message.error(getApiErrorMessage(e, '加载版本列表失败'))
     } finally {
       setLoading(false)
     }
@@ -71,7 +65,7 @@ const NovelVersions: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-'
+      render: (v: string) => formatDateTime(v)
     },
     {
       title: '操作',
@@ -98,26 +92,26 @@ const NovelVersions: React.FC = () => {
           </Popconfirm>
           <Button type="text" onClick={() => {
             setViewing(record)
-            setViewOpen(true)
+            viewModal.show()
           }}>
             查看
           </Button>
           <Button type="text" onClick={() => {
             setLeft(record)
-            setCompareOpen(true)
+            compareModal.show()
           }}>
             设为左侧
           </Button>
           <Button type="text" onClick={() => {
             setRight(record)
-            setCompareOpen(true)
+            compareModal.show()
           }}>
             设为右侧
           </Button>
         </Space>
       )
     }
-  ]), [id, navigate, novelId])
+  ]), [id, navigate, novelId, viewModal, compareModal])
 
   const leftSnapshot = left?.snapshot
   const rightSnapshot = right?.snapshot
@@ -145,7 +139,7 @@ const NovelVersions: React.FC = () => {
           <Space>
             <Button onClick={() => navigate(`/novel/${id}`)}>返回创作</Button>
             <Button onClick={() => navigate(`/novel/${id}/history`)}>生成历史</Button>
-            <Button type="primary" onClick={() => setCreateOpen(true)}>创建版本</Button>
+            <Button type="primary" onClick={createModal.show}>创建版本</Button>
           </Space>
         </Col>
       </Row>
@@ -161,8 +155,8 @@ const NovelVersions: React.FC = () => {
 
       <Modal
         title="创建版本"
-        open={createOpen}
-        onCancel={() => setCreateOpen(false)}
+        open={createModal.open}
+        onCancel={createModal.hide}
         footer={null}
       >
         <Form
@@ -172,12 +166,12 @@ const NovelVersions: React.FC = () => {
             try {
               await novelService.createVersion(novelId, values.label)
               message.success('版本创建成功')
-              setCreateOpen(false)
+              createModal.hide()
               createForm.resetFields()
               load()
             } catch (e) {
               console.error(e)
-              message.error('版本创建失败')
+              message.error(getApiErrorMessage(e, '版本创建失败'))
             }
           }}
         >
@@ -186,7 +180,7 @@ const NovelVersions: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setCreateOpen(false)}>取消</Button>
+              <Button onClick={createModal.hide}>取消</Button>
               <Button type="primary" htmlType="submit">创建</Button>
             </Space>
           </Form.Item>
@@ -195,8 +189,8 @@ const NovelVersions: React.FC = () => {
 
       <Modal
         title="版本对比"
-        open={compareOpen}
-        onCancel={() => setCompareOpen(false)}
+        open={compareModal.open}
+        onCancel={compareModal.hide}
         width={1000}
         footer={null}
       >
@@ -242,8 +236,8 @@ const NovelVersions: React.FC = () => {
 
       <Modal
         title={`版本详情 ${viewing ? `#${viewing.id}` : ''}`}
-        open={viewOpen}
-        onCancel={() => setViewOpen(false)}
+        open={viewModal.open}
+        onCancel={viewModal.hide}
         width={900}
         footer={null}
       >

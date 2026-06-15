@@ -2,13 +2,16 @@
   "name": "smart-scribe-backend",
   "version": "1.0.0",
   "description": "AI 网文生成工具后端",
-  "main": "app.js",
+  "main": "dist/backend/src/app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "db:init": "node scripts/initDb.js",
-    "db:migrate:rbac-usage": "node scripts/migrateRbacUsage.js",
-    "db:migrate:novel-memory": "node scripts/migrateNovelMemory.js",
+    "start": "node dist/backend/src/app.js",
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "db:init": "tsx scripts/initDb.ts",
+    "db:migrate:rbac-usage": "tsx scripts/migrateRbacUsage.ts",
+    "db:migrate:novel-memory": "tsx scripts/migrateNovelMemory.ts",
+    "db:migrate:ai-credential": "tsx scripts/migrateAiCredential.ts",
     "test": "jest",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
@@ -30,11 +33,22 @@
     "sequelize": "^6.35.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/express-serve-static-core": "^4.19.8",
     "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.9.3",
     "@types/supertest": "^7.2.0",
+    "babel-jest": "^30.4.1",
     "jest": "^30.3.0",
     "nodemon": "^3.0.2",
     "sqlite3": "^6.0.1",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }

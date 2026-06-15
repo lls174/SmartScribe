@@ -15,7 +15,8 @@ import { useAuth } from '@hooks/useAuth'
 import { useMediaQuery } from '@hooks/useMediaQuery'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import Loading from '@components/Loading'
-import type { CharacterCard, Chapter, NovelSetting } from '@app-types/index'
+import type { CharacterCard, Chapter, NovelSetting, AiStreamPhase } from '@app-types/index'
+import { getAiStreamPhaseLabel } from '@utils/aiStream'
 import '@styles/Novel.css'
 
 const { Title } = Typography
@@ -28,6 +29,7 @@ const Novel: React.FC = () => {
   const { config } = useAIConfig()
   const [editorState, setEditorState] = useState(() => EditorState.createEmpty())
   const [loading, setLoading] = useState(false)
+  const [streamPhase, setStreamPhase] = useState<AiStreamPhase>('waiting')
   const [modalVisible, setModalVisible] = useState(false)
   const [actionType, setActionType] = useState<'generate' | 'continue' | 'polish'>('generate')
   const [customPrompt, setCustomPrompt] = useState('')
@@ -65,6 +67,7 @@ const Novel: React.FC = () => {
   const pendingScrollToChapterRef = useRef(false)
   const autoFollowRef = useRef(true)
   const lastScrollYRef = useRef(0)
+  const lastStreamScrollAtRef = useRef(0)
 
   const scrollToElement = (element: HTMLElement | null, behavior: ScrollBehavior = 'smooth') => {
     if (!element) return
@@ -137,9 +140,11 @@ const Novel: React.FC = () => {
   }, [loading])
 
   useEffect(() => {
-    if (loading && autoFollowRef.current) {
-      streamEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
-    }
+    if (!loading || !autoFollowRef.current) return
+    const now = Date.now()
+    if (now - lastStreamScrollAtRef.current < 120) return
+    lastStreamScrollAtRef.current = now
+    streamEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
   }, [generatedContent, loading])
 
   useEffect(() => {
@@ -493,6 +498,7 @@ const Novel: React.FC = () => {
     setModalVisible(false)
     // 显示loading状态
     setLoading(true)
+    setStreamPhase('waiting')
     pendingScrollToChapterRef.current = true
     setGeneratedContent('')
     try {
@@ -512,6 +518,7 @@ const Novel: React.FC = () => {
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
+          setStreamPhase,
           (_plot) => { void _plot },
           config,
           ctx,
@@ -533,6 +540,7 @@ const Novel: React.FC = () => {
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
+          setStreamPhase,
           (_plot) => { void _plot },
           config,
           ctx,
@@ -553,6 +561,7 @@ const Novel: React.FC = () => {
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
           },
+          setStreamPhase,
           () => {
           },
           config,
@@ -1161,7 +1170,7 @@ const Novel: React.FC = () => {
           <Col span={24}>
             <div className="novel-generating" ref={generatingRef}>
               <Title level={4} className="novel-generating-title">
-                ✨ 正在生成内容...
+                ✨ {getAiStreamPhaseLabel(streamPhase)}
               </Title>
               <div className="novel-generating-content">
                 {generatedContent ? (
@@ -1170,7 +1179,7 @@ const Novel: React.FC = () => {
                     <span className="streaming-cursor"></span>
                   </>
                 ) : (
-                  <span className="novel-generating-waiting">等待AI响应中...</span>
+                  <span className="novel-generating-waiting">{getAiStreamPhaseLabel(streamPhase)}</span>
                 )}
               </div>
               <div ref={streamEndRef} className="novel-stream-anchor" aria-hidden="true" />

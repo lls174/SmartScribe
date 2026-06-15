@@ -1,4 +1,5 @@
 const aiService = require('./aiService')
+const { estimateTokens } = require('../utils/tokenEstimate')
 
 class ContextManager {
   constructor() {
@@ -7,8 +8,7 @@ class ContextManager {
   }
 
   estimateTokens(text) {
-    if (!text) return 0
-    return Math.ceil(text.length / this.CHARS_PER_TOKEN)
+    return estimateTokens(text, this.CHARS_PER_TOKEN)
   }
 
   truncateToTokenLimit(text, maxTokens) {

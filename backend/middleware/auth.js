@@ -1,13 +1,7 @@
 const jwt = require('jsonwebtoken')
 const { User } = require('../models')
-
-const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET 未配置')
-  }
-
-  return process.env.JWT_SECRET
-}
+const { getJwtSecret } = require('../config/jwt')
+const { NOT_FOUND, AUTH } = require('../constants/messages')
 
 /**
  * 验证JWT token的中间件
@@ -39,11 +33,11 @@ const verifyToken = async (req, res, next) => {
     })
 
     if (!user) {
-      return res.status(401).json({ message: '用户不存在' })
+      return res.status(401).json({ message: NOT_FOUND.USER })
     }
 
     if (user.status === 'banned') {
-      return res.status(403).json({ message: '账号已被封禁，请联系管理员' })
+      return res.status(403).json({ message: AUTH.BANNED })
     }
 
     req.userId = user.id

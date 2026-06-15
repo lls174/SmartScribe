@@ -47,8 +47,8 @@ const api = axios.create({
 // CSRF Token 缓存
 let csrfToken: string | null = null
 
-// 获取 CSRF Token
-const getCsrfToken = async (): Promise<string | null> => {
+// 获取 CSRF Token（导出以便 SSE 等非 axios 请求复用同一缓存）
+export const getCsrfToken = async (): Promise<string | null> => {
   if (csrfToken) {
     return csrfToken
   }

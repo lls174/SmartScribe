@@ -1,5 +1,7 @@
 const axios = require('axios')
 const util = require('util')
+const { estimateTokens } = require('../utils/tokenEstimate')
+const { DEFAULT_AI_PLATFORM, DEFAULT_AI_MODEL } = require('../constants/aiDefaults')
 
 const PLATFORM_BASE_URLS = {
   aliyun: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
@@ -64,7 +66,7 @@ class AIService {
     }
   }
 
-  async generateContent(prompt, platform = 'aliyun', model = 'qwen3.5-plus', onChunk, aiOptions = {}) {
+  async generateContent(prompt, platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL, onChunk, aiOptions = {}) {
     try {
       const { baseURL, apiKey } = this.getPlatformConfig(platform, aiOptions)
       console.log('API配置 - platform:', platform, 'baseURL:', baseURL, 
@@ -87,11 +89,7 @@ class AIService {
   }
 
   estimateTokens(text) {
-    if (!text || typeof text !== 'string') {
-      return 0
-    }
-
-    return Math.ceil(text.length / 4)
+    return estimateTokens(text, 4)
   }
 
   normalizeUsage(usage, prompt, content) {

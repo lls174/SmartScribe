@@ -3,7 +3,9 @@ import { Button, Typography, Space, Card, List, Modal, Form, Input, message, Pop
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { novelService } from '@services/novelService'
-import { useAuth } from '@hooks/useAuth'
+import { useRequireAuth } from '@hooks/useRequireAuth'
+import { useModal } from '@hooks/useModal'
+import { formatDate, getApiErrorMessage } from '@utils/index'
 import '@styles/Creation.css'
 
 const { Title, Paragraph } = Typography
@@ -17,30 +19,27 @@ interface Novel {
 
 const Creation: React.FC = () => {
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isReady } = useRequireAuth()
   const [novels, setNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(true)
-  const [modalVisible, setModalVisible] = useState(false)
+  const createModal = useModal()
   const [form] = Form.useForm()
-  const [editModalVisible, setEditModalVisible] = useState(false)
+  const editModal = useModal()
   const [editingNovel, setEditingNovel] = useState<Novel | null>(null)
   const [editForm] = Form.useForm()
 
   useEffect(() => {
-    if (authLoading) return
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
+    if (isReady) {
+      fetchNovels()
     }
-    fetchNovels()
-  }, [isAuthenticated, authLoading, navigate])
+  }, [isReady])
 
   const fetchNovels = async () => {
     try {
       const data = await novelService.getNovels()
       setNovels(data)
     } catch (error) {
-      message.error('获取小说列表失败')
+      message.error(getApiErrorMessage(error, '获取小说列表失败'))
     } finally {
       setLoading(false)
     }
@@ -50,11 +49,11 @@ const Creation: React.FC = () => {
     try {
       const newNovel = await novelService.createNovel(values.name, values.description)
       setNovels([newNovel, ...novels])
-      setModalVisible(false)
+      createModal.hide()
       form.resetFields()
       navigate(`/novel/${newNovel.id}`)
     } catch (error) {
-      message.error('创建小说失败')
+      message.error(getApiErrorMessage(error, '创建小说失败'))
     }
   }
 
@@ -64,7 +63,7 @@ const Creation: React.FC = () => {
       setNovels(novels.filter(novel => novel.id !== id))
       message.success('删除成功')
     } catch (error) {
-      message.error('删除失败')
+      message.error(getApiErrorMessage(error, '删除失败'))
     }
   }
 
@@ -74,7 +73,7 @@ const Creation: React.FC = () => {
       name: novel.name,
       description: novel.description
     })
-    setEditModalVisible(true)
+    editModal.show()
   }
 
   const handleUpdateNovel = async (values: { name: string; description: string }) => {
@@ -86,11 +85,11 @@ const Creation: React.FC = () => {
       })
       setNovels(prev => prev.map(n => (n.id === updated.id ? { ...n, ...updated } : n)))
       message.success('更新成功')
-      setEditModalVisible(false)
+      editModal.hide()
       setEditingNovel(null)
       editForm.resetFields()
     } catch (error) {
-      message.error('更新失败')
+      message.error(getApiErrorMessage(error, '更新失败'))
     }
   }
 
@@ -101,7 +100,7 @@ const Creation: React.FC = () => {
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
-          onClick={() => setModalVisible(true)}
+          onClick={createModal.show}
           className="creation-button creation-button--desktop"
         >
           新建小说
@@ -119,7 +118,7 @@ const Creation: React.FC = () => {
                 <Title level={4} className="novel-name">{novel.name}</Title>
                 <Paragraph className="novel-description">{novel.description || '暂无描述'}</Paragraph>
                 <div className="novel-meta">
-                  <span className="novel-date">创建时间: {new Date(novel.createdAt).toLocaleDateString()}</span>
+                  <span className="novel-date">创建时间: {formatDate(novel.createdAt)}</span>
                 </div>
               </div>
               <div className="novel-actions">
@@ -152,13 +151,13 @@ const Creation: React.FC = () => {
         icon={<PlusOutlined />}
         className="creation-fab"
         aria-label="新建小说"
-        onClick={() => setModalVisible(true)}
+        onClick={createModal.show}
       />
 
       <Modal
         title="新建小说"
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
+        open={createModal.open}
+        onCancel={createModal.hide}
         footer={null}
         className="creation-modal"
       >
@@ -178,7 +177,7 @@ const Creation: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setModalVisible(false)}>取消</Button>
+              <Button onClick={createModal.hide}>取消</Button>
               <Button type="primary" htmlType="submit" className="creation-button">创建</Button>
             </Space>
           </Form.Item>
@@ -187,9 +186,9 @@ const Creation: React.FC = () => {
 
       <Modal
         title="编辑小说信息"
-        open={editModalVisible}
+        open={editModal.open}
         onCancel={() => {
-          setEditModalVisible(false)
+          editModal.hide()
           setEditingNovel(null)
         }}
         footer={null}
@@ -212,7 +211,7 @@ const Creation: React.FC = () => {
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={() => {
-                setEditModalVisible(false)
+                editModal.hide()
                 setEditingNovel(null)
               }}>
                 取消

@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { App as AntdApp, Button, Typography, Form, Select, Input, Space, Card, Alert, Switch, Tag, Progress, Collapse } from 'antd'
-import { KeyOutlined, ApiOutlined, ExperimentOutlined, InfoCircleOutlined, CheckOutlined, BgColorsOutlined } from '@ant-design/icons'
+import { KeyOutlined, ApiOutlined, ExperimentOutlined, InfoCircleOutlined, CheckOutlined, BgColorsOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import { useTheme } from '@contexts/ThemeContext'
 import { UI_THEMES } from '@/themes/uiThemes'
 import type { UIThemeKey } from '@/themes/uiThemes'
-import { MODEL_CATALOG_UPDATED_AT, PLATFORM_CONFIG, PLATFORM_META, getRecommendedModel } from '@/data/aiModelCatalog'
+import {
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PLATFORM,
+  MODEL_CATALOG_UPDATED_AT,
+  PLATFORM_CONFIG,
+  PLATFORM_META,
+  getRecommendedModel,
+  readStoredAiConfig
+} from '@/data/aiModelCatalog'
+import { aiConfigService, type AiConfigStatus, type AiConfigSummary } from '@services/aiConfigService'
 import '@styles/Setting.css'
 
 const { Title, Paragraph } = Typography
@@ -21,9 +30,16 @@ const Setting: React.FC = () => {
   const { config, updateConfig } = useAIConfig()
   const { themeKey, setThemeKey } = useTheme()
   const [form] = Form.useForm()
-  const [selectedPlatform, setSelectedPlatform] = useState(config.platform)
+  const initialConfig = readStoredAiConfig()
+  const [selectedPlatform, setSelectedPlatform] = useState(config.platform || initialConfig.platform || DEFAULT_AI_PLATFORM)
   const [selectedModel, setSelectedModel] = useState(config.model)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
+  const [configStatus, setConfigStatus] = useState<AiConfigStatus | null>(null)
+  const [configSummary, setConfigSummary] = useState<AiConfigSummary | null>(null)
+  const [editingApiKey, setEditingApiKey] = useState(false)
+  const configuredEntry = configSummary?.configuredPlatforms.find((item) => item.platform === selectedPlatform)
+  const hasUserSavedApiKey = Boolean(configuredEntry) || configStatus?.source === 'user'
+  const maskedApiKey = configuredEntry?.maskedApiKey || (configStatus?.source === 'user' ? configStatus.maskedApiKey : undefined)
   const [desktopPetEnabled, setDesktopPetEnabled] = useState(true)
   const [desktopPetMotion, setDesktopPetMotion] = useState<string>('Idle')
 
@@ -34,16 +50,86 @@ const Setting: React.FC = () => {
 
   const currentPlatformConfig = PLATFORM_CONFIG[selectedPlatform]
   const currentModel = currentPlatformConfig?.models.find((item) => item.value === selectedModel)
+  const activePlatformConfig = PLATFORM_CONFIG[configSummary?.activePlatform || DEFAULT_AI_PLATFORM]
+  const activeConfigured = configSummary?.configuredPlatforms.find((item) => item.platform === configSummary.activePlatform)
+
+  const loadSummary = async (platform = selectedPlatform) => {
+    const summary = await aiConfigService.getPlatformConfig(platform)
+    setConfigSummary(summary)
+    setConfigStatus(summary.platformStatus || null)
+
+    const activePlatform = summary.usingDefault ? DEFAULT_AI_PLATFORM : summary.activePlatform
+    const activeModel = summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel
+
+    updateConfig({ platform: activePlatform, model: activeModel })
+
+    if (summary.platformStatus) {
+      setSelectedModel(summary.platformStatus.model)
+      form.setFieldsValue({
+        platform,
+        model: summary.platformStatus.model,
+        customBaseURL: summary.platformStatus.customBaseURL || PLATFORM_CONFIG[platform]?.defaultBaseURL || '',
+        apiKey: ''
+      })
+    }
+
+    return summary
+  }
+
+  useEffect(() => {
+    aiConfigService.getSummary()
+      .then((summary) => {
+        setConfigSummary(summary)
+        const initialPlatform = summary.usingDefault ? DEFAULT_AI_PLATFORM : summary.activePlatform
+        setSelectedPlatform(initialPlatform)
+        setSelectedModel(summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel)
+        updateConfig({
+          platform: initialPlatform,
+          model: summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel
+        })
+      })
+      .catch(() => {
+        message.warning('获取 AI 配置状态失败，请稍后刷新重试')
+      })
+  }, [message, updateConfig])
+
+  useEffect(() => {
+    if (!configSummary) return
+
+    aiConfigService.getPlatformConfig(selectedPlatform)
+      .then((summary) => {
+        setConfigStatus(summary.platformStatus || null)
+        if (summary.platformStatus) {
+          setSelectedModel(summary.platformStatus.model)
+          form.setFieldsValue({
+            platform: selectedPlatform,
+            model: summary.platformStatus.model,
+            customBaseURL: summary.platformStatus.customBaseURL || PLATFORM_CONFIG[selectedPlatform]?.defaultBaseURL || '',
+            apiKey: ''
+          })
+        }
+      })
+      .catch(() => {
+        message.warning('获取当前服务商配置失败')
+      })
+  }, [configSummary, form, message, selectedPlatform])
 
   const handlePlatformChange = (platform: string) => {
-    setSelectedPlatform(platform)
     const platformConf = PLATFORM_CONFIG[platform]
-    const defaultModel = getRecommendedModel(platform)?.value || ''
+    const configured = configSummary?.configuredPlatforms.find((item) => item.platform === platform)
+    const defaultModel = configured?.model || getRecommendedModel(platform)?.value || DEFAULT_AI_MODEL
+    setSelectedPlatform(platform)
     setSelectedModel(defaultModel)
+    setConfigStatus(null)
+    setEditingApiKey(false)
+    if (configured) {
+      updateConfig({ platform, model: defaultModel })
+    }
     form.setFieldsValue({
       platform,
       model: defaultModel,
-      customBaseURL: platformConf?.defaultBaseURL || ''
+      apiKey: '',
+      customBaseURL: configured?.customBaseURL || platformConf?.defaultBaseURL || ''
     })
   }
 
@@ -54,13 +140,15 @@ const Setting: React.FC = () => {
     customBaseURL?: string
   }) => {
     try {
-      updateConfig({
-        platform: values.platform,
-        model: values.model,
+      await aiConfigService.saveConfig({
+        platform: values.platform || selectedPlatform,
         apiKey: values.apiKey || '',
-        customBaseURL: values.customBaseURL || ''
+        model: values.model,
+        customBaseURL: values.customBaseURL
       })
-      message.success('AI 配置已更新（密钥仅存储在内存中，关闭页面后将清除）')
+      await loadSummary(values.platform || selectedPlatform)
+      setEditingApiKey(false)
+      message.success(`${PLATFORM_CONFIG[values.platform || selectedPlatform]?.label || values.platform} 配置已加密保存`)
     } catch {
       message.error('配置保存失败')
     }
@@ -86,13 +174,6 @@ const Setting: React.FC = () => {
     message.success('已触发动作播放')
   }
 
-  const getApiKeyPlaceholder = () => {
-    if (selectedPlatform === 'custom') {
-      return '请输入 API 密钥'
-    }
-    return `请输入 ${currentPlatformConfig?.label || ''} API 密钥（留空则使用服务端配置）`
-  }
-
   return (
     <div className="setting-container">
       <div className="setting-header setting-header--page">
@@ -100,9 +181,19 @@ const Setting: React.FC = () => {
           <ExperimentOutlined /> AI 配置
         </Title>
         <Paragraph className="setting-description">
-          选择 AI 平台与模型，配置 API 密钥。密钥仅保存在浏览器内存中。
+          未配置密钥时默认使用智谱 AI。选择服务商并保存密钥后，将按对应服务商进行 AI 生成。
         </Paragraph>
       </div>
+
+      {configSummary?.usingDefault && (
+        <Alert
+          className="setting-alert"
+          type="warning"
+          showIcon
+          message="当前默认使用智谱 AI"
+          description={configSummary.hint || '请先在下方选择服务商并保存 API 密钥。'}
+        />
+      )}
 
       <Alert
         className="setting-alert"
@@ -110,7 +201,7 @@ const Setting: React.FC = () => {
         showIcon
         icon={<InfoCircleOutlined />}
         message="安全提示"
-        description="API 密钥不会写入服务器或本地存储，关闭标签页后自动清除。留空时将使用服务端预配置密钥。"
+        description="API 密钥仅在保存时提交一次，并由服务端安全存储；后续生成请求只携带服务商和模型，不会再次传输明文密钥。"
       />
 
       <section className="setting-section">
@@ -146,10 +237,10 @@ const Setting: React.FC = () => {
         onFinish={onFinish}
         layout="vertical"
         initialValues={{
-          platform: config.platform,
-          model: config.model,
-          apiKey: config.apiKey,
-          customBaseURL: config.customBaseURL || currentPlatformConfig?.defaultBaseURL || ''
+          platform: config.platform || DEFAULT_AI_PLATFORM,
+          model: config.model || DEFAULT_AI_MODEL,
+          apiKey: '',
+          customBaseURL: currentPlatformConfig?.defaultBaseURL || ''
         }}
       >
         <Form.Item name="platform" hidden>
@@ -163,6 +254,7 @@ const Setting: React.FC = () => {
           <div className="platform-cards">
             {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => {
               const meta = PLATFORM_META[key]
+              const isConfigured = configSummary?.configuredPlatforms.some((item) => item.platform === key)
               return (
                 <button
                   key={key}
@@ -172,7 +264,10 @@ const Setting: React.FC = () => {
                 >
                   <span className="platform-check"><CheckOutlined /></span>
                   <span className="platform-icon">{meta?.icon ?? '🔌'}</span>
-                  <span className="platform-name">{conf.label}</span>
+                  <span className="platform-name">
+                    {conf.label}
+                    {isConfigured && <Tag color="success" style={{ marginLeft: 8 }}>已配置</Tag>}
+                  </span>
                   <span className="platform-desc">{meta?.description ?? conf.envKeyHint}</span>
                 </button>
               )
@@ -193,7 +288,10 @@ const Setting: React.FC = () => {
             {currentPlatformConfig && currentPlatformConfig.models.length > 0 ? (
               <Select
                 className="setting-input setting-select"
-                onChange={setSelectedModel}
+                onChange={(value) => {
+                  setSelectedModel(value)
+                  updateConfig({ platform: selectedPlatform, model: value })
+                }}
                 optionLabelProp="label"
                 options={currentPlatformConfig.models.map((model) => ({
                   value: model.value,
@@ -219,28 +317,87 @@ const Setting: React.FC = () => {
             )}
           </Form.Item>
 
+          <Form.Item label={<span className="setting-form-label">深度思考</span>}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Switch
+                checked={config.enableDeepThinking}
+                onChange={(checked) => {
+                  updateConfig({ enableDeepThinking: checked })
+                  message.success(checked ? '已开启深度思考' : '已关闭深度思考')
+                }}
+              />
+              <span className="setting-form-extra">
+                开启后模型会先进行深度推理再输出正文，等待时间更长；默认关闭以加快出字速度。
+              </span>
+            </Space>
+          </Form.Item>
+
           <Form.Item
             label={<span className="setting-form-label"><KeyOutlined /> API 密钥</span>}
-            name="apiKey"
             extra={
               <span className="setting-form-extra">
-                环境变量: {currentPlatformConfig?.envKeyHint}，留空使用服务端配置
+                环境变量: {currentPlatformConfig?.envKeyHint}；填写后将覆盖对应服务商的服务端默认密钥并加密保存
               </span>
             }
           >
-            <Input.Password
-              className="setting-input setting-input-password"
-              placeholder={getApiKeyPlaceholder()}
-              visibilityToggle={{ visible: apiKeyVisible, onVisibleChange: setApiKeyVisible }}
-            />
+            {hasUserSavedApiKey && !editingApiKey ? (
+              <Input
+                readOnly
+                className="setting-input setting-api-key-display"
+                prefix={<CheckCircleFilled className="setting-api-key-display__icon" />}
+                value={maskedApiKey || '密钥已加密保存'}
+                suffix={
+                  <button
+                    type="button"
+                    className="setting-api-key-change-btn"
+                    onClick={() => {
+                      setEditingApiKey(true)
+                      form.setFieldValue('apiKey', '')
+                    }}
+                  >
+                    更换密钥
+                  </button>
+                }
+              />
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                {hasUserSavedApiKey && (
+                  <button
+                    type="button"
+                    className="setting-api-key-cancel-btn"
+                    onClick={() => {
+                      setEditingApiKey(false)
+                      form.setFieldValue('apiKey', '')
+                    }}
+                  >
+                    取消更换，保持已保存密钥
+                  </button>
+                )}
+                <Form.Item
+                  name="apiKey"
+                  noStyle
+                  rules={[{ required: !hasUserSavedApiKey, message: '请填写当前服务商的 AI 密钥' }]}
+                >
+                  <Input.Password
+                    className="setting-input setting-input-password"
+                    placeholder={
+                      hasUserSavedApiKey
+                        ? '输入新密钥（留空表示不修改已保存密钥）'
+                        : `请输入 ${currentPlatformConfig?.label || 'AI 服务商'} API 密钥`
+                    }
+                    visibilityToggle={{ visible: apiKeyVisible, onVisibleChange: setApiKeyVisible }}
+                  />
+                </Form.Item>
+              </Space>
+            )}
           </Form.Item>
 
           {selectedPlatform === 'custom' && (
             <Form.Item
               label={<span className="setting-form-label"><ApiOutlined /> API 地址</span>}
               name="customBaseURL"
-              rules={[{ required: true, message: '请输入 API 地址' }]}
-              extra={<span className="setting-form-extra">支持 OpenAI 兼容的 API 地址</span>}
+              rules={[{ required: true, message: '请输入自定义 API 地址' }]}
+              extra={<span className="setting-form-extra">支持 OpenAI 兼容的 Chat Completions 地址</span>}
             >
               <Input className="setting-input" placeholder="https://api.example.com/v1/chat/completions" />
             </Form.Item>
@@ -275,29 +432,46 @@ const Setting: React.FC = () => {
       )}
 
       <Card className="setting-card setting-card--status">
-        <h3 className="setting-section-heading">当前配置状态</h3>
+        <h3 className="setting-section-heading">当前生效配置</h3>
         <div className="setting-status-grid">
           <div className="setting-status-chip">
             <span className="setting-status-label">平台</span>
-            <span className="setting-status-value">{PLATFORM_CONFIG[config.platform]?.label || config.platform}</span>
+            <span className="setting-status-value">
+              {configSummary?.usingDefault
+                ? `${activePlatformConfig?.label || '智谱 AI / Z.ai'}（默认）`
+                : activePlatformConfig?.label || configSummary?.activePlatform}
+            </span>
           </div>
           <div className="setting-status-chip">
             <span className="setting-status-label">模型</span>
-            <span className="setting-status-value">{config.model}</span>
+            <span className="setting-status-value">
+              {configSummary?.usingDefault ? DEFAULT_AI_MODEL : configSummary?.activeModel}
+            </span>
           </div>
           <div className="setting-status-chip setting-status-chip--wide">
             <span className="setting-status-label">密钥</span>
             <span className="setting-status-value">
-              {config.apiKey ? `已配置 (${config.apiKey.substring(0, 4)}****)` : '未配置（服务端）'}
+              {configSummary?.usingDefault
+                ? '未配置个人密钥'
+                : activeConfigured
+                  ? `已加密保存（${activeConfigured.maskedApiKey}）`
+                  : '未配置'}
             </span>
           </div>
-          {config.customBaseURL && (
-            <div className="setting-status-chip setting-status-chip--wide">
-              <span className="setting-status-label">API 地址</span>
-              <span className="setting-status-value setting-status-value--mono">{config.customBaseURL}</span>
-            </div>
-          )}
+          <div className="setting-status-chip setting-status-chip--wide">
+            <span className="setting-status-label">API 地址</span>
+            <span className="setting-status-value setting-status-value--mono">
+              {configSummary?.usingDefault
+                ? activePlatformConfig?.defaultBaseURL || '未配置'
+                : activeConfigured?.customBaseURL || activePlatformConfig?.defaultBaseURL || '未配置'}
+            </span>
+          </div>
         </div>
+        {configSummary?.usingDefault && configSummary.hint && (
+          <Paragraph className="setting-form-extra" style={{ marginTop: 16, marginBottom: 0 }}>
+            {configSummary.hint}
+          </Paragraph>
+        )}
       </Card>
 
       <Collapse

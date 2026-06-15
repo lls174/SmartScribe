@@ -2,27 +2,27 @@ import React, { useState, useEffect } from 'react'
 import { Button, Typography, Card, Table, message, Space, Modal, Form, Input, Select, Tag, Popconfirm } from 'antd'
 import { EditOutlined, DeleteOutlined, EyeOutlined, FireOutlined, AppstoreOutlined, BulbOutlined } from '@ant-design/icons'
 import { creativeApi } from '@services/api'
+import { CREATIVE_TYPES, GENRES_WITH_ALL } from '@/data/creativeConstants'
+import { usePagination } from '@hooks/usePagination'
+import { useModal } from '@hooks/useModal'
+import { formatDateTime, getApiErrorMessage } from '@utils/index'
 import '@styles/CreativeList.css'
 
 const { Title, Paragraph } = Typography
 const { Option } = Select
 
+const creativeTypes = CREATIVE_TYPES
+const genres = GENRES_WITH_ALL
+
 const CreativeList: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [creatives, setCreatives] = useState<any[]>([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
-  const [viewModalVisible, setViewModalVisible] = useState(false)
-  const [editModalVisible, setEditModalVisible] = useState(false)
+  const { page, limit, getTablePagination } = usePagination(10)
+  const viewModal = useModal()
+  const editModal = useModal()
   const [currentCreative, setCurrentCreative] = useState<any>(null)
   const [editForm] = Form.useForm()
-
-  const creativeTypes = [
-    { value: 'trend', label: '流行趋势' },
-    { value: 'theme', label: '热门题材' },
-    { value: 'element', label: '创意元素' }
-  ]
 
   const creativeTypeIcon = (type: string) => {
     if (type === 'trend') return <FireOutlined />
@@ -30,16 +30,6 @@ const CreativeList: React.FC = () => {
     if (type === 'element') return <BulbOutlined />
     return null
   }
-
-  const genres = [
-    { value: 'all', label: '全题材' },
-    { value: 'xuanhuan', label: '玄幻' },
-    { value: 'xianxia', label: '仙侠' },
-    { value: 'dushi', label: '都市' },
-    { value: 'lishi', label: '历史' },
-    { value: 'kehuan', label: '科幻' },
-    { value: 'yanqing', label: '言情' }
-  ]
 
   const loadCreatives = async () => {
     setLoading(true)
@@ -49,7 +39,7 @@ const CreativeList: React.FC = () => {
       setTotal(response.data.total)
     } catch (error) {
       console.error('获取创意列表失败:', error)
-      message.error('获取创意列表失败')
+      message.error(getApiErrorMessage(error, '获取创意列表失败'))
     } finally {
       setLoading(false)
     }
@@ -61,7 +51,7 @@ const CreativeList: React.FC = () => {
 
   const handleViewCreative = (creative: any) => {
     setCurrentCreative(creative)
-    setViewModalVisible(true)
+    viewModal.show()
   }
 
   const handleEditCreative = (creative: any) => {
@@ -70,18 +60,18 @@ const CreativeList: React.FC = () => {
       title: creative.title,
       genre: creative.genre
     })
-    setEditModalVisible(true)
+    editModal.show()
   }
 
   const handleUpdateCreative = async (values: any) => {
     try {
       await creativeApi.update(currentCreative.id, values)
       message.success('创意更新成功')
-      setEditModalVisible(false)
+      editModal.hide()
       loadCreatives()
     } catch (error) {
       console.error('更新创意失败:', error)
-      message.error('更新创意失败')
+      message.error(getApiErrorMessage(error, '更新创意失败'))
     }
   }
 
@@ -92,7 +82,7 @@ const CreativeList: React.FC = () => {
       loadCreatives()
     } catch (error) {
       console.error('删除创意失败:', error)
-      message.error('删除创意失败')
+      message.error(getApiErrorMessage(error, '删除创意失败'))
     }
   }
 
@@ -140,7 +130,7 @@ const CreativeList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleString()
+      render: (date: string) => formatDateTime(date, '')
     },
     {
       title: '操作',
@@ -196,15 +186,7 @@ const CreativeList: React.FC = () => {
             ...creative,
             key: creative.id
           }))}
-          pagination={{
-            total,
-            pageSize: limit,
-            current: page,
-            onChange: (page) => setPage(page),
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-            onShowSizeChange: (_, pageSize) => setLimit(pageSize)
-          }}
+          pagination={getTablePagination(total)}
           loading={loading}
           rowClassName="creative-list-row"
         />
@@ -213,8 +195,8 @@ const CreativeList: React.FC = () => {
       {/* 查看创意模态框 */}
       <Modal
         title={currentCreative?.title}
-        open={viewModalVisible}
-        onCancel={() => setViewModalVisible(false)}
+        open={viewModal.open}
+        onCancel={viewModal.hide}
         width={800}
       >
         <div className="creative-view-content">
@@ -228,7 +210,7 @@ const CreativeList: React.FC = () => {
               {genres.find(g => g.value === currentCreative?.genre)?.label || currentCreative?.genre}
             </Tag>
             <span className="creative-view-label">创建时间:</span>
-            <span>{currentCreative?.createdAt ? new Date(currentCreative.createdAt).toLocaleString() : ''}</span>
+            <span>{formatDateTime(currentCreative?.createdAt, '')}</span>
           </div>
           <div className="creative-view-body">
             {currentCreative?.content}
@@ -239,8 +221,8 @@ const CreativeList: React.FC = () => {
       {/* 编辑创意模态框 */}
       <Modal
         title="编辑创意"
-        open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
+        open={editModal.open}
+        onCancel={editModal.hide}
         footer={null}
       >
         <Form
@@ -267,7 +249,7 @@ const CreativeList: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setEditModalVisible(false)}>
+              <Button onClick={editModal.hide}>
                 取消
               </Button>
               <Button type="primary" htmlType="submit">

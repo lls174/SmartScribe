@@ -8,6 +8,36 @@ export const formatDate = (dateString: string): string => {
   })
 }
 
+// 格式化日期时间（与页面既有 new Date(x).toLocaleString() 行为一致，支持空值兜底）
+export const formatDateTime = (dateString?: string | null, fallback = '-'): string => {
+  if (!dateString) {
+    return fallback
+  }
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) {
+    return fallback
+  }
+  return date.toLocaleString()
+}
+
+// 从 axios / 普通错误对象中提取后端返回的提示信息
+export const getApiErrorMessage = (error: unknown, fallback = '操作失败'): string => {
+  if (error && typeof error === 'object') {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    return err.response?.data?.message || err.message || fallback
+  }
+  return fallback
+}
+
+// 安全地序列化为带缩进的 JSON 字符串，失败时回退为 String()
+export const safeStringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
 // 防抖函数
 export const debounce = <T extends (...args: any[]) => void>(
   func: T,

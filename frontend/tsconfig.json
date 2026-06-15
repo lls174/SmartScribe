@@ -24,10 +24,11 @@
       "@utils/*": ["src/utils/*"],
       "@hooks/*": ["src/hooks/*"],
       "@app-types/*": ["src/types/*"],
+      "@shared-types": ["../shared/types"],
       "@services/*": ["src/services/*"],
       "@contexts/*": ["src/contexts/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../shared/types/**/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

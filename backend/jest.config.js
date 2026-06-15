@@ -1,15 +1,21 @@
 module.exports = {
   testEnvironment: 'node',
+  preset: 'ts-jest',
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: './tsconfig.json' }],
+    '^.+\\.js$': 'babel-jest'
+  },
   testMatch: [
-    '**/tests/unit/**/*.test.js',
-    '**/tests/integration/**/*.test.js',
-    '**/tests/**/*.test.js'
+    '**/tests/unit/**/*.test.{js,ts}',
+    '**/tests/integration/**/*.test.{js,ts}',
+    '**/tests/**/*.test.{js,ts}'
   ],
+  moduleFileExtensions: ['ts', 'js', 'json'],
   coverageDirectory: './coverage',
   collectCoverageFrom: [
-    '**/routes/**/*.js',
-    '**/services/**/*.js',
-    '**/models/**/*.js'
+    'src/routes/**/*.ts',
+    'src/services/**/*.ts',
+    'src/models/**/*.ts'
   ],
   coverageThreshold: {
     global: {

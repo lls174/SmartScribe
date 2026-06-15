@@ -24,6 +24,41 @@ export const PLATFORM_META: Record<string, { icon: string; description: string }
 
 export const MODEL_CATALOG_UPDATED_AT = '2026-05-02'
 
+export const DEFAULT_AI_PLATFORM = 'zhipu'
+export const DEFAULT_AI_MODEL = 'glm-5-turbo'
+export const LEGACY_DEFAULT_AI_PLATFORM = 'aliyun'
+export const AI_CONFIG_STORAGE_VERSION = '2'
+export const AI_ENABLE_DEEP_THINKING_KEY = 'aiEnableDeepThinking'
+
+const LEGACY_DEFAULT_MODEL_PREFIXES = ['qwen']
+
+export const readStoredAiConfig = (): { platform: string; model: string; enableDeepThinking: boolean } => {
+  const version = localStorage.getItem('aiConfigVersion')
+  let platform = localStorage.getItem('aiPlatform')
+  let model = localStorage.getItem('aiModel')
+
+  if (version !== AI_CONFIG_STORAGE_VERSION) {
+    const isLegacyDefault =
+      (!platform || platform === LEGACY_DEFAULT_AI_PLATFORM) &&
+      (!model || LEGACY_DEFAULT_MODEL_PREFIXES.some((prefix) => model?.startsWith(prefix)))
+
+    if (isLegacyDefault) {
+      platform = DEFAULT_AI_PLATFORM
+      model = DEFAULT_AI_MODEL
+      localStorage.setItem('aiPlatform', platform)
+      localStorage.setItem('aiModel', model)
+    }
+
+    localStorage.setItem('aiConfigVersion', AI_CONFIG_STORAGE_VERSION)
+  }
+
+  return {
+    platform: platform || DEFAULT_AI_PLATFORM,
+    model: model || DEFAULT_AI_MODEL,
+    enableDeepThinking: localStorage.getItem(AI_ENABLE_DEEP_THINKING_KEY) === 'true'
+  }
+}
+
 export const PLATFORM_CONFIG: Record<string, PlatformOption> = {
   aliyun: {
     label: '阿里云百炼',
@@ -97,7 +132,7 @@ export const PLATFORM_CONFIG: Record<string, PlatformOption> = {
         description: '旧版轻量模型，适合连通性测试和低成本草稿。'
       }
     ],
-    defaultBaseURL: 'https://api.z.ai/api/paas/v4/chat/completions',
+    defaultBaseURL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     envKeyHint: 'GLM_AI_KEY'
   },
   deepseek: {

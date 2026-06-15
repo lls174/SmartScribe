@@ -5,8 +5,11 @@ const contextManager = require('../services/contextManager')
 const aiService = require('../services/aiService')
 const novelMemoryService = require('../services/novelMemoryService')
 const { GenerationHistory, AiRequestLog } = require('../models')
-const { body, validationResult } = require('express-validator')
+const { body } = require('express-validator')
 const { verifyToken } = require('../middleware/auth')
+const { validateRequest } = require('../middleware/validate')
+const { DEFAULT_AI_PLATFORM, DEFAULT_AI_MODEL } = require('../constants/aiDefaults')
+const { SETTING_TYPE_MAP } = require('../constants/aiSettingTypes')
 
 async function loadNovelMemory(req) {
   if (!req.body.novelId) {
@@ -45,6 +48,25 @@ function setupSSE(res, req) {
 function parseNullableId(value) {
   const parsed = value ? parseInt(value, 10) : null
   return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * 记录生成历史（失败不阻塞主流程，仅告警）
+ */
+async function recordGenerationHistory({ req, action, prompt, params, result }) {
+  try {
+    await GenerationHistory.create({
+      userId: req.userId,
+      novelId: parseNullableId(req.body.novelId),
+      chapterId: parseNullableId(req.body.chapterId),
+      action,
+      prompt,
+      params,
+      result
+    })
+  } catch (logError) {
+    console.warn(`写入生成历史失败(${action}):`, logError.message || logError)
+  }
 }
 
 async function writeAiRequestLog({ req, action, platform, model, status, startedAt, promptText, result, error, metadata }) {
@@ -95,17 +117,13 @@ router.post('/generate',
   body('novelMeta').optional(),
   body('chapters').optional(),
   body('currentChapterId').optional(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
-
       const { 
         prompt, chapterTitle, 
-        platform = 'aliyun', model = 'qwen3.5-plus',
+        platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL,
         apiKey, customBaseURL,
         genre, style, corePlot, characters, wordCount, other
       } = req.body
@@ -121,21 +139,13 @@ router.post('/generate',
 
       const result = await novelAgent.generateChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
-      try {
-        const novelId = req.body.novelId ? parseInt(req.body.novelId) : null
-        const chapterId = req.body.chapterId ? parseInt(req.body.chapterId) : null
-        await GenerationHistory.create({
-          userId: req.userId,
-          novelId: Number.isFinite(novelId) ? novelId : null,
-          chapterId: Number.isFinite(chapterId) ? chapterId : null,
-          action: 'generate',
-          prompt,
-          params: { platform, model, chapterTitle, genre, style, corePlot, characters, wordCount, other },
-          result: result?.content
-        })
-      } catch (logError) {
-        console.warn('写入生成历史失败(generate):', logError.message || logError)
-      }
+      await recordGenerationHistory({
+        req,
+        action: 'generate',
+        prompt,
+        params: { platform, model, chapterTitle, genre, style, corePlot, characters, wordCount, other },
+        result: result?.content
+      })
 
       await writeAiRequestLog({
         req,
@@ -158,8 +168,8 @@ router.post('/generate',
       await writeAiRequestLog({
         req,
         action: 'generate',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: req.body.prompt || '',
@@ -184,17 +194,13 @@ router.post('/continue',
   body('novelMeta').optional(),
   body('chapters').optional(),
   body('currentChapterId').optional(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
-
       const { 
         prompt, lastContent, lastPlot, 
-        platform = 'aliyun', model = 'qwen3.5-plus',
+        platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL,
         apiKey, customBaseURL,
         wordCount
       } = req.body
@@ -220,21 +226,13 @@ router.post('/continue',
 
       const result = await novelAgent.continueChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
-      try {
-        const novelId = req.body.novelId ? parseInt(req.body.novelId) : null
-        const chapterId = req.body.chapterId ? parseInt(req.body.chapterId) : null
-        await GenerationHistory.create({
-          userId: req.userId,
-          novelId: Number.isFinite(novelId) ? novelId : null,
-          chapterId: Number.isFinite(chapterId) ? chapterId : null,
-          action: 'continue',
-          prompt,
-          params: { platform, model, lastPlot, wordCount },
-          result: result?.content
-        })
-      } catch (logError) {
-        console.warn('写入生成历史失败(continue):', logError.message || logError)
-      }
+      await recordGenerationHistory({
+        req,
+        action: 'continue',
+        prompt,
+        params: { platform, model, lastPlot, wordCount },
+        result: result?.content
+      })
 
       await writeAiRequestLog({
         req,
@@ -257,8 +255,8 @@ router.post('/continue',
       await writeAiRequestLog({
         req,
         action: 'continue',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: `${req.body.prompt || ''}\n${req.body.lastContent || ''}\n${req.body.lastPlot || ''}`,
@@ -282,17 +280,13 @@ router.post('/polish',
   body('novelMeta').optional(),
   body('chapters').optional(),
   body('currentChapterId').optional(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
-
       const { 
         content, prompt, 
-        platform = 'aliyun', model = 'qwen3.5-plus',
+        platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL,
         apiKey, customBaseURL
       } = req.body
 
@@ -304,22 +298,14 @@ router.post('/polish',
 
       const polishedContent = await novelAgent.polishChapter(novelContext, userPrompt, platform, model, onChunk, aiOptions)
 
-      try {
-        const novelId = req.body.novelId ? parseInt(req.body.novelId) : null
-        const chapterId = req.body.chapterId ? parseInt(req.body.chapterId) : null
-        const { beforeContent, beforePlot, chapterTitle } = req.body
-        await GenerationHistory.create({
-          userId: req.userId,
-          novelId: Number.isFinite(novelId) ? novelId : null,
-          chapterId: Number.isFinite(chapterId) ? chapterId : null,
-          action: 'polish',
-          prompt,
-          params: { platform, model, beforeContent, beforePlot, chapterTitle },
-          result: polishedContent.content
-        })
-      } catch (logError) {
-        console.warn('写入生成历史失败(polish):', logError.message || logError)
-      }
+      const { beforeContent, beforePlot, chapterTitle } = req.body
+      await recordGenerationHistory({
+        req,
+        action: 'polish',
+        prompt,
+        params: { platform, model, beforeContent, beforePlot, chapterTitle },
+        result: polishedContent.content
+      })
 
       await writeAiRequestLog({
         req,
@@ -342,8 +328,8 @@ router.post('/polish',
       await writeAiRequestLog({
         req,
         action: 'polish',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: `${req.body.prompt || ''}\n${req.body.content || ''}`,
@@ -364,18 +350,13 @@ router.post('/setting',
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
+      const { type, prompt, platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL, apiKey, customBaseURL } = req.body
 
-      const { type, prompt, platform = 'aliyun', model = 'qwen3.5-plus', apiKey, customBaseURL } = req.body
-
-      const typeMap = { character: '人物设定', world: '世界观设定', item: '道具设定' }
-      const typeText = typeMap[type] || '设定'
+      const typeText = SETTING_TYPE_MAP[type] || '设定'
 
       const systemPrompt = contextManager.buildSystemPrompt('generate')
       const novelMemory = await loadNovelMemory(req)
@@ -407,8 +388,8 @@ router.post('/setting',
       await writeAiRequestLog({
         req,
         action: 'setting',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: req.body.prompt || '',
@@ -431,15 +412,11 @@ router.post('/outline',
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
-
-      const { novelType, corePlot, length, platform = 'aliyun', model = 'qwen3.5-plus', apiKey, customBaseURL } = req.body
+      const { novelType, corePlot, length, platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL, apiKey, customBaseURL } = req.body
 
       const novelContext = await buildNovelContext(req)
       const userPrompt = `小说类型：${novelType}\n核心剧情：${corePlot}\n${length ? '篇幅要求：' + length : ''}`
@@ -470,8 +447,8 @@ router.post('/outline',
       await writeAiRequestLog({
         req,
         action: 'outline',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: `${req.body.novelType || ''}\n${req.body.corePlot || ''}`,
@@ -492,34 +469,24 @@ router.post('/creative',
   body('model').optional().trim(),
   body('apiKey').optional().trim(),
   body('customBaseURL').optional().trim(),
+  validateRequest,
   async (req, res) => {
     const startedAt = Date.now()
     try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg })
-      }
-
-      const { prompt, type, platform = 'aliyun', model = 'qwen3.5-plus', apiKey, customBaseURL } = req.body
+      const { prompt, type, platform = DEFAULT_AI_PLATFORM, model = DEFAULT_AI_MODEL, apiKey, customBaseURL } = req.body
 
       const { isConnectionClosed, onChunk } = setupSSE(res, req)
       const aiOptions = { apiKey, customBaseURL }
 
       const result = await aiService.generateContent(prompt, platform, model, onChunk, aiOptions)
 
-      try {
-        await GenerationHistory.create({
-          userId: req.userId,
-          novelId: null,
-          chapterId: null,
-          action: 'creative',
-          prompt,
-          params: { platform, model, type },
-          result: result.content
-        })
-      } catch (logError) {
-        console.warn('写入生成历史失败(creative):', logError.message || logError)
-      }
+      await recordGenerationHistory({
+        req,
+        action: 'creative',
+        prompt,
+        params: { platform, model, type },
+        result: result.content
+      })
 
       await writeAiRequestLog({
         req,
@@ -542,8 +509,8 @@ router.post('/creative',
       await writeAiRequestLog({
         req,
         action: 'creative',
-        platform: req.body.platform || 'aliyun',
-        model: req.body.model || 'qwen3.5-plus',
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
         status: 'failed',
         startedAt,
         promptText: req.body.prompt || '',

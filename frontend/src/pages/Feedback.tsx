@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Typography, Form, Input, Select, Space, message, Card } from 'antd'
 import { feedbackService } from '@services/feedbackService'
+import { getApiErrorMessage } from '@utils/index'
 
 const { Title, Paragraph } = Typography
 
@@ -21,7 +22,7 @@ const Feedback: React.FC = () => {
       message.success('反馈提交成功')
       form.resetFields()
     } catch (error) {
-      message.error('反馈提交失败')
+      message.error(getApiErrorMessage(error, '反馈提交失败'))
     } finally {
       setLoading(false)
     }
