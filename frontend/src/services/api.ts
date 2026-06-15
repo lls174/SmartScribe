@@ -46,6 +46,20 @@ const api = axios.create({
 
 // CSRF Token 缓存
 let csrfToken: string | null = null
+let redirectingToLogin = false
+
+const AUTH_USER_KEY = 'authUser'
+
+const isAuthPage = (): boolean => {
+  const path = window.location.pathname
+  return path.endsWith('/login') || path.endsWith('/register')
+}
+
+const clearAuthState = (): void => {
+  localStorage.removeItem('token')
+  localStorage.removeItem(AUTH_USER_KEY)
+  window.dispatchEvent(new Event('auth-change'))
+}
 
 // 获取 CSRF Token（导出以便 SSE 等非 axios 请求复用同一缓存）
 export const getCsrfToken = async (): Promise<string | null> => {
@@ -111,8 +125,11 @@ api.interceptors.response.use(
     }
     
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = buildAppUrl('/login')
+      clearAuthState()
+      if (!isAuthPage() && !redirectingToLogin) {
+        redirectingToLogin = true
+        window.location.href = buildAppUrl('/login')
+      }
     }
     return Promise.reject(error)
   }

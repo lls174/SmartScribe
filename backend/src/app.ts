@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit'
 import csurf from 'csurf'
 import cookieParser from 'cookie-parser'
 import { connectDatabase, getDatabaseStatus } from './config/db'
+import { globalApiLimiter } from './middleware/rateLimit'
 import userRoutes from './routes/user'
 import novelRoutes from './routes/novel'
 import aiRoutes from './routes/ai'
@@ -82,14 +83,6 @@ app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { message: '请求过于频繁，请稍后再试' },
-  standardHeaders: true,
-  legacyHeaders: false
-})
-
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -98,7 +91,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false
 })
 
-app.use('/api/', limiter)
+app.use('/api/', globalApiLimiter)
 
 const csrfProtection: RequestHandler = process.env.NODE_ENV === 'test'
   ? (_req, _res, next) => next()

@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
+import { isAxiosError } from 'axios'
 import { userService } from '@services/userService'
 import type { User } from '@app-types/index'
 
 const AUTH_USER_KEY = 'authUser'
+
+const isAuthFailure = (error: unknown): boolean => {
+  if (!isAxiosError(error)) {
+    return false
+  }
+  const status = error.response?.status
+  return status === 401 || status === 403
+}
 
 const getStoredUser = (): User | null => {
   const raw = localStorage.getItem(AUTH_USER_KEY)
@@ -50,7 +59,10 @@ export const useAuth = () => {
     checkAuth()
 
     if (localStorage.getItem('token')) {
-      refreshUser().catch(() => {
+      refreshUser().catch((error) => {
+        if (!isAuthFailure(error)) {
+          return
+        }
         localStorage.removeItem('token')
         localStorage.removeItem(AUTH_USER_KEY)
         setIsAuthenticated(false)
