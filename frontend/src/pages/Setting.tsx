@@ -181,7 +181,7 @@ const Setting: React.FC = () => {
           <ExperimentOutlined /> AI 配置
         </Title>
         <Paragraph className="setting-description">
-          未配置密钥时默认使用智谱 AI。选择服务商并保存密钥后，将按对应服务商进行 AI 生成。
+          未配置密钥时默认使用 DeepSeek。选择服务商并保存密钥后，将按对应服务商进行 AI 生成。
         </Paragraph>
       </div>
 
@@ -190,7 +190,7 @@ const Setting: React.FC = () => {
           className="setting-alert"
           type="warning"
           showIcon
-          message="当前默认使用智谱 AI"
+          message={`当前默认使用 ${PLATFORM_CONFIG[DEFAULT_AI_PLATFORM]?.label || 'DeepSeek'}`}
           description={configSummary.hint || '请先在下方选择服务商并保存 API 密钥。'}
         />
       )}
@@ -438,7 +438,7 @@ const Setting: React.FC = () => {
             <span className="setting-status-label">平台</span>
             <span className="setting-status-value">
               {configSummary?.usingDefault
-                ? `${activePlatformConfig?.label || '智谱 AI / Z.ai'}（默认）`
+                ? `${activePlatformConfig?.label || PLATFORM_CONFIG[DEFAULT_AI_PLATFORM]?.label || 'DeepSeek'}（默认）`
                 : activePlatformConfig?.label || configSummary?.activePlatform}
             </span>
           </div>

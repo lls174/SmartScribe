@@ -2,6 +2,7 @@ export interface AppSseEvent {
   content?: string
   plot?: string
   done?: boolean
+  error?: string
   status?: 'waiting' | 'thinking' | 'generating'
 }
 

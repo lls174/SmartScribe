@@ -81,6 +81,7 @@ const createSSERequest = (
 
   let fullContent = ''
   let plot = ''
+  let settled = false
   const sseLineBuffer = { value: '' }
   const chunkBatcher = onChunk
     ? createRafChunkBatcher((batch) => {
@@ -89,7 +90,24 @@ const createSSERequest = (
       })
     : null
 
-  const handleSseEvent = (data: { content?: string; plot?: string; done?: boolean; status?: AiStreamPhase }) => {
+  const fail = (error: Error): void => {
+    if (settled) return
+    settled = true
+    xhr.abort()
+    reject(error)
+  }
+
+  const succeed = (): void => {
+    if (settled) return
+    settled = true
+    resolve({ content: fullContent, plot })
+  }
+
+  const handleSseEvent = (data: { content?: string; plot?: string; done?: boolean; error?: string; status?: AiStreamPhase }) => {
+    if (data.error) {
+      fail(new Error(data.error))
+      return
+    }
     if (data.status) {
       onPhase?.(data.status)
     }
@@ -108,6 +126,8 @@ const createSSERequest = (
     }
   }
 
+  xhr.timeout = 120000
+
   xhr.onprogress = () => {
     const responseText = xhr.responseText
     if (!responseText) return
@@ -121,25 +141,35 @@ const createSSERequest = (
   }
 
   xhr.onload = () => {
+    if (settled) return
     // 处理末尾未换行的事件
     if (sseLineBuffer.value.trim()) {
       feedSseText(sseLineBuffer, '\n', handleSseEvent)
     }
+    if (settled) return
     chunkBatcher?.flushNow()
     if (xhr.status >= 200 && xhr.status < 300) {
-      resolve({ content: fullContent, plot })
+      if (!fullContent.trim()) {
+        fail(new Error('生成内容为空，请检查 backend/.env 中的 AI 密钥或设置页配置'))
+        return
+      }
+      succeed()
     } else {
       try {
         const errorData = JSON.parse(xhr.responseText)
-        reject(new Error(errorData.message || `请求失败: ${xhr.status}`))
+        fail(new Error(errorData.message || `请求失败: ${xhr.status}`))
       } catch {
-        reject(new Error(`请求失败: ${xhr.status}`))
+        fail(new Error(`请求失败: ${xhr.status}`))
       }
     }
   }
 
   xhr.onerror = () => {
-    reject(new Error('网络错误，请检查网络连接'))
+    fail(new Error('网络错误，请检查后端是否已启动（npm run dev）及 Vite 代理配置'))
+  }
+
+  xhr.ontimeout = () => {
+    fail(new Error('AI 生成超时，请稍后重试'))
   }
 
   xhr.send(JSON.stringify(body))

@@ -46,8 +46,8 @@ const ENV_KEY_BY_PLATFORM: Partial<Record<AiPlatform, string>> = {
 
 const DEFAULT_MODEL_BY_PLATFORM: Record<AiPlatform, string> = {
   aliyun: 'qwen3.5-plus',
-  zhipu: DEFAULT_AI_MODEL,
-  deepseek: 'deepseek-chat',
+  zhipu: 'glm-5-turbo',
+  deepseek: DEFAULT_AI_MODEL,
   openai: 'gpt-4.1-mini',
   custom: DEFAULT_AI_MODEL
 }
@@ -82,7 +82,7 @@ export const getActiveAiConfigSummary = async (userId: number): Promise<AiConfig
       activePlatform: DEFAULT_AI_PLATFORM,
       activeModel: DEFAULT_AI_MODEL,
       usingDefault: true,
-      hint: '未配置个人密钥，默认使用智谱 AI。请选择服务商并保存密钥后再切换。',
+      hint: '未配置个人密钥，默认使用 DeepSeek。请选择服务商并保存密钥后再切换。',
       configuredPlatforms: []
     }
   }
@@ -177,11 +177,17 @@ export const getUserAiConfig = async (userId?: number, platform?: string, model?
 
   if (userId) {
     const credential = await AiCredential.findOne({ where: { userId, platform: normalizedPlatform } })
-    if (credential) {
-      return {
-        platform: normalizedPlatform,
-        model: model?.trim() || credential.model || getDefaultModel(normalizedPlatform),
-        apiKey: decryptSecret(credential.encryptedApiKey),
+  if (credential) {
+    let apiKey = ''
+    try {
+      apiKey = decryptSecret(credential.encryptedApiKey)
+    } catch {
+      throw new Error('已保存的 AI 密钥无法解密，请在设置页重新保存密钥（或检查 AI_KEY_ENCRYPTION_SECRET 是否与保存时一致）')
+    }
+    return {
+      platform: normalizedPlatform,
+      model: model?.trim() || credential.model || getDefaultModel(normalizedPlatform),
+      apiKey,
         customBaseURL: credential.customBaseURL || undefined,
         hasUserApiKey: true
       }
@@ -190,9 +196,9 @@ export const getUserAiConfig = async (userId?: number, platform?: string, model?
     const userCredentialCount = await AiCredential.count({ where: { userId } })
     if (userCredentialCount === 0) {
       return {
-        platform: DEFAULT_AI_PLATFORM,
-        model: model?.trim() || DEFAULT_AI_MODEL,
-        apiKey: getEnvApiKey(DEFAULT_AI_PLATFORM),
+        platform: normalizedPlatform,
+        model: model?.trim() || getDefaultModel(normalizedPlatform),
+        apiKey: getEnvApiKey(normalizedPlatform),
         hasUserApiKey: false
       }
     }

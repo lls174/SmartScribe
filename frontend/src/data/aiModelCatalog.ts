@@ -24,13 +24,13 @@ export const PLATFORM_META: Record<string, { icon: string; description: string }
 
 export const MODEL_CATALOG_UPDATED_AT = '2026-05-02'
 
-export const DEFAULT_AI_PLATFORM = 'zhipu'
-export const DEFAULT_AI_MODEL = 'glm-5-turbo'
-export const LEGACY_DEFAULT_AI_PLATFORM = 'aliyun'
-export const AI_CONFIG_STORAGE_VERSION = '2'
+export const DEFAULT_AI_PLATFORM = 'deepseek'
+export const DEFAULT_AI_MODEL = 'deepseek-v4-flash'
+export const LEGACY_DEFAULT_PLATFORMS = ['aliyun', 'zhipu'] as const
+export const AI_CONFIG_STORAGE_VERSION = '3'
 export const AI_ENABLE_DEEP_THINKING_KEY = 'aiEnableDeepThinking'
 
-const LEGACY_DEFAULT_MODEL_PREFIXES = ['qwen']
+const LEGACY_DEFAULT_MODEL_PREFIXES = ['qwen', 'glm-5']
 
 export const readStoredAiConfig = (): { platform: string; model: string; enableDeepThinking: boolean } => {
   const version = localStorage.getItem('aiConfigVersion')
@@ -39,7 +39,7 @@ export const readStoredAiConfig = (): { platform: string; model: string; enableD
 
   if (version !== AI_CONFIG_STORAGE_VERSION) {
     const isLegacyDefault =
-      (!platform || platform === LEGACY_DEFAULT_AI_PLATFORM) &&
+      (!platform || LEGACY_DEFAULT_PLATFORMS.includes(platform as (typeof LEGACY_DEFAULT_PLATFORMS)[number])) &&
       (!model || LEGACY_DEFAULT_MODEL_PREFIXES.some((prefix) => model?.startsWith(prefix)))
 
     if (isLegacyDefault) {
@@ -169,7 +169,7 @@ export const PLATFORM_CONFIG: Record<string, PlatformOption> = {
         description: '兼容旧模型名，新配置建议使用 deepseek-v4-flash。'
       }
     ],
-    defaultBaseURL: 'https://api.deepseek.com/v1/chat/completions',
+    defaultBaseURL: 'https://api.deepseek.com/chat/completions',
     envKeyHint: 'DEEPSEEK_API_KEY'
   },
   openai: {

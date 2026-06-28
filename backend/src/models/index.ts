@@ -59,9 +59,9 @@ export class AiCredential extends Model<InferAttributes<AiCredential>, InferCrea
 AiCredential.init({
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
-  platform: { type: DataTypes.ENUM('aliyun', 'zhipu', 'deepseek', 'openai', 'custom'), allowNull: false, defaultValue: 'zhipu' },
+  platform: { type: DataTypes.ENUM('aliyun', 'zhipu', 'deepseek', 'openai', 'custom'), allowNull: false, defaultValue: 'deepseek' },
   encryptedApiKey: { type: DataTypes.TEXT, allowNull: false },
-  model: { type: DataTypes.STRING, allowNull: false, defaultValue: 'glm-5-turbo' },
+  model: { type: DataTypes.STRING, allowNull: false, defaultValue: 'deepseek-v4-flash' },
   customBaseURL: { type: DataTypes.STRING, allowNull: true },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
@@ -126,6 +126,7 @@ export class Feedback extends Model<InferAttributes<Feedback>, InferCreationAttr
   declare type: string
   declare content: string
   declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 }
 
 Feedback.init({
@@ -133,8 +134,9 @@ Feedback.init({
   userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
   type: { type: DataTypes.STRING, allowNull: false },
   content: { type: DataTypes.TEXT, allowNull: false },
-  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
-}, { sequelize, modelName: 'Feedback', tableName: 'feedback', updatedAt: false })
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, { sequelize, modelName: 'Feedback', tableName: 'feedback' })
 
 export class Creative extends Model<InferAttributes<Creative>, InferCreationAttributes<Creative>> {
   declare id: CreationOptional<number>

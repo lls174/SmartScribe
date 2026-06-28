@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, type AxiosResponse } from 'axios'
 import util from 'util'
 import { Readable } from 'stream'
 import type { AiContentResult, AiPlatform, AiStreamPhase, AiUsage, SettingType } from '../../../shared/types'
@@ -62,7 +62,8 @@ const normalizePlatformKey = (platform: string): AiPlatform | null => {
 /** 按用户选择控制各平台「深度思考」开关，默认关闭以优先低延迟 */
 const buildThinkingRequestBody = (platform: string, enableDeepThinking: boolean): Record<string, unknown> => {
   const normalizedPlatform = normalizePlatformKey(platform)
-  if (normalizedPlatform === 'zhipu') {
+  if (normalizedPlatform === 'zhipu' || normalizedPlatform === 'deepseek') {
+    // DeepSeek V4 默认开启 thinking，未显式 disabled 时正文会进入 reasoning_content 导致流式结果为空
     return { thinking: { type: enableDeepThinking ? 'enabled' : 'disabled' } }
   }
   if (normalizedPlatform === 'aliyun') {
@@ -71,12 +72,15 @@ const buildThinkingRequestBody = (platform: string, enableDeepThinking: boolean)
   return {}
 }
 
+interface ChatCompletionMessage {
+  content?: string
+  reasoning_content?: string
+}
+
 interface ChatCompletionResponse {
   usage?: OpenAIUsage
   choices?: Array<{
-    message?: {
-      content?: string
-    }
+    message?: ChatCompletionMessage
   }>
 }
 
@@ -84,18 +88,32 @@ const PLATFORM_BASE_URLS: Record<Exclude<AiPlatform, 'custom'>, string> = {
   aliyun: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
   // 智谱官方 OpenAI 兼容端点（文档推荐 open.bigmodel.cn）
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-  deepseek: 'https://api.deepseek.com/v1/chat/completions',
+  deepseek: 'https://api.deepseek.com/chat/completions',
   openai: 'https://api.openai.com/v1/chat/completions'
 }
 
 const getPlatformEnvKeys = (): Record<Exclude<AiPlatform, 'custom'>, string | undefined> => ({
-  aliyun: process.env.DASHSCOPE_API_KEY,
-  zhipu: process.env.GLM_AI_KEY,
-  deepseek: process.env.DEEPSEEK_API_KEY,
-  openai: process.env.OPENAI_API_KEY
+  aliyun: normalizeApiKey(process.env.DASHSCOPE_API_KEY),
+  zhipu: normalizeApiKey(process.env.GLM_AI_KEY),
+  deepseek: normalizeApiKey(process.env.DEEPSEEK_API_KEY),
+  openai: normalizeApiKey(process.env.OPENAI_API_KEY)
 })
 
 const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error)
+
+const normalizeApiKey = (apiKey: string | undefined): string => {
+  if (!apiKey) return ''
+  return apiKey.trim().replace(/^Bearer\s+/i, '')
+}
+
+const readStreamToString = (stream: Readable): Promise<string> => new Promise((resolve, reject) => {
+  const chunks: Buffer[] = []
+  stream.on('data', (chunk: Buffer | string) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  })
+  stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
+  stream.on('error', reject)
+})
 
 class AIService {
   getPlatformConfig(platform: string, aiOptions: AiOptions = {}): PlatformConfig {
@@ -126,7 +144,7 @@ class AIService {
 
     return {
       baseURL: aiOptions.customBaseURL || defaultBaseURL,
-      apiKey: (aiOptions.apiKey && aiOptions.apiKey.trim()) || defaultApiKey || ''
+      apiKey: normalizeApiKey(aiOptions.apiKey) || defaultApiKey || ''
     }
   }
 
@@ -141,7 +159,7 @@ class AIService {
       const { baseURL, apiKey } = this.getPlatformConfig(platform, aiOptions)
 
       if (!apiKey) {
-        throw new Error('API密钥未配置，请在AI设置页面填写密钥，或设置环境变量 GLM_AI_KEY')
+        throw new Error('API密钥未配置，请在 AI 设置页面填写密钥，或设置对应服务商的环境变量')
       }
 
       if (!baseURL) {
@@ -214,8 +232,14 @@ class AIService {
           Authorization: `Bearer ${apiKey}`
         },
         responseType: shouldStream ? 'stream' : 'json',
-        timeout: 120000
+        timeout: 120000,
+        validateStatus: () => true
       })
+
+      if (response.status < 200 || response.status >= 300) {
+        const detail = await this.extractHttpErrorMessage(response)
+        throw new Error(`AI API错误(${response.status}): ${this.buildApiErrorHint(response.status, detail, platform)}`)
+      }
 
       if (shouldStream) {
         return new Promise((resolve, reject) => {
@@ -281,8 +305,13 @@ class AIService {
       }
 
       const data = response.data as ChatCompletionResponse
-      const content = data.choices?.[0]?.message?.content
+      const message = data.choices?.[0]?.message
+      const content = message?.content?.trim()
       if (!content) {
+        const reasoning = message?.reasoning_content?.trim()
+        if (enableDeepThinking && reasoning) {
+          return this.createResult(prompt, reasoning, data.usage)
+        }
         throw new Error('生成内容为空')
       }
       return this.createResult(prompt, content, data.usage)
@@ -293,6 +322,51 @@ class AIService {
       }
       throw error
     }
+  }
+
+  private async extractHttpErrorMessage(response: AxiosResponse): Promise<string> {
+    const raw = response.data
+    if (typeof raw === 'string') {
+      return this.parseApiErrorText(raw)
+    }
+    if (Buffer.isBuffer(raw)) {
+      return this.parseApiErrorText(raw.toString('utf-8'))
+    }
+    if (raw instanceof Readable) {
+      return this.parseApiErrorText(await readStreamToString(raw))
+    }
+    if (raw && typeof raw === 'object') {
+      const candidate = raw as { error?: { message?: string }; message?: string }
+      return candidate.error?.message || candidate.message || JSON.stringify(raw).slice(0, 500)
+    }
+    return `HTTP ${response.status}`
+  }
+
+  private parseApiErrorText(text: string): string {
+    const trimmed = text.trim()
+    if (!trimmed) return '空响应体'
+    try {
+      const parsed = JSON.parse(trimmed) as { error?: { message?: string }; message?: string }
+      return parsed.error?.message || parsed.message || trimmed.slice(0, 500)
+    } catch {
+      return trimmed.slice(0, 500)
+    }
+  }
+
+  private buildApiErrorHint(status: number, detail: string, platform: string): string {
+    if (status === 401) {
+      const envHint = platform === 'deepseek'
+        ? 'DEEPSEEK_API_KEY'
+        : platform === 'zhipu'
+          ? 'GLM_AI_KEY'
+          : platform === 'aliyun'
+            ? 'DASHSCOPE_API_KEY'
+            : platform === 'openai'
+              ? 'OPENAI_API_KEY'
+              : '对应环境变量'
+      return `${detail}。请检查 backend/.env 中的 ${envHint} 是否正确，或在设置页重新保存 ${platform} 密钥（已保存的个人密钥会覆盖环境变量）`
+    }
+    return detail
   }
 
   private formatAxiosError(error: AxiosError): string {

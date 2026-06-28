@@ -46,6 +46,18 @@ interface AiLogParams {
 
 const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error)
 
+const sendAiRouteError = (res: import('express').Response, error: unknown, fallback: string): void => {
+  const message = getErrorMessage(error) || fallback
+  if (res.headersSent) {
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: message })}\n\n`)
+      res.end()
+    }
+    return
+  }
+  res.status(500).json({ message })
+}
+
 async function resolveAiExecutionConfig(
   userId: number | undefined,
   requestedPlatform?: string,
@@ -57,6 +69,9 @@ async function resolveAiExecutionConfig(
   aiOptions: AiOptions & { apiKey: string; customBaseURL?: string }
 }> {
   const config = await getUserAiConfig(userId, requestedPlatform, requestedModel)
+  if (!config.apiKey?.trim()) {
+    throw new Error('API 密钥未配置，请在设置页保存密钥，或在 backend/.env 中配置对应服务商环境变量')
+  }
   return {
     platform: config.platform,
     model: config.model,
@@ -200,7 +215,10 @@ async function writeAiRequestLog({ req, action, platform, model, status, started
 const commonAiValidators = [
   body('platform').optional().trim(),
   body('model').optional().trim(),
-  body('enableDeepThinking').optional().isBoolean()
+  body('enableDeepThinking')
+    .optional({ values: 'null' })
+    .custom((value) => value === undefined || typeof value === 'boolean')
+    .withMessage('enableDeepThinking 必须是布尔值')
 ]
 
 router.get('/config',
@@ -267,7 +285,7 @@ router.post('/generate',
     } catch (error) {
       console.error('生成章节失败:', error)
       await writeAiRequestLog({ req, action: 'generate', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '生成章节失败' })
+      sendAiRouteError(res, error, '生成章节失败')
     }
   }
 )
@@ -303,7 +321,7 @@ router.post('/continue',
     } catch (error) {
       console.error('续写章节失败:', error)
       await writeAiRequestLog({ req, action: 'continue', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.lastContent || ''}\n${req.body.lastPlot || ''}`, error })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '续写章节失败' })
+      sendAiRouteError(res, error, '续写章节失败')
     }
   }
 )
@@ -334,7 +352,7 @@ router.post('/polish',
     } catch (error) {
       console.error('润色内容失败:', error)
       await writeAiRequestLog({ req, action: 'polish', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.content || ''}`, error })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '润色内容失败' })
+      sendAiRouteError(res, error, '润色内容失败')
     }
   }
 )
@@ -364,7 +382,7 @@ router.post('/setting',
     } catch (error) {
       console.error('生成设定失败:', error)
       await writeAiRequestLog({ req, action: 'setting', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '生成设定失败' })
+      sendAiRouteError(res, error, '生成设定失败')
     }
   }
 )
@@ -393,7 +411,7 @@ router.post('/outline',
     } catch (error) {
       console.error('生成大纲失败:', error)
       await writeAiRequestLog({ req, action: 'outline', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.novelType || ''}\n${req.body.corePlot || ''}`, error })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '生成大纲失败' })
+      sendAiRouteError(res, error, '生成大纲失败')
     }
   }
 )
@@ -420,7 +438,7 @@ router.post('/creative',
     } catch (error) {
       console.error('生成创意失败:', error)
       await writeAiRequestLog({ req, action: 'creative', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
-      if (!res.headersSent) res.status(500).json({ message: getErrorMessage(error) || '生成创意失败' })
+      sendAiRouteError(res, error, '生成创意失败')
     }
   }
 )

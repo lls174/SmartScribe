@@ -31,6 +31,8 @@ export default defineConfig(({ mode }) => {
           target: devApiTarget,
           changeOrigin: true,
           secure: false,
+          timeout: 0,
+          proxyTimeout: 0,
           configure: (proxy) => {
             proxy.on('proxyRes', (proxyRes, req) => {
               if (req.url?.includes('/ai/')) {
