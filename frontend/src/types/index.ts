@@ -49,6 +49,7 @@ export interface NovelSetting {
   taboos?: string | null
   styleGuide?: string | null
   notes?: string | null
+  overallOutline?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +60,7 @@ export interface Chapter {
   title: string
   content: string
   plot?: string
+  outline?: string
   createdAt: string
   updatedAt: string
 }

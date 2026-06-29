@@ -1,9 +1,10 @@
-import { CharacterCard, Novel, NovelSetting } from '../models'
+import { CharacterCard, Chapter, Novel, NovelSetting } from '../models'
 
 interface NovelMemory {
   novel: Record<string, unknown>
   characters: Array<Record<string, unknown>>
   setting: Record<string, unknown> | null
+  chapters: Array<Record<string, unknown>>
 }
 
 class NovelMemoryService {
@@ -21,19 +22,25 @@ class NovelMemoryService {
       return null
     }
 
-    const [characters, setting] = await Promise.all([
+    const [characters, setting, chapters] = await Promise.all([
       CharacterCard.findAll({
         where: { novelId: novel.id, isActive: true },
         order: [['priority', 'DESC'], ['updatedAt', 'DESC']],
         limit: 20
       }),
-      NovelSetting.findOne({ where: { novelId: novel.id } })
+      NovelSetting.findOne({ where: { novelId: novel.id } }),
+      Chapter.findAll({
+        where: { novelId: novel.id, isDeleted: false },
+        order: [['order', 'ASC']],
+        attributes: ['title', 'outline', 'order']
+      })
     ])
 
     return {
       novel: novel.toJSON(),
       characters: characters.map((card) => card.toJSON()),
-      setting: setting ? setting.toJSON() : null
+      setting: setting ? setting.toJSON() : null,
+      chapters: chapters.map((chapter) => chapter.toJSON())
     }
   }
 
@@ -61,6 +68,23 @@ class NovelMemoryService {
 
       if (settingLines.length) {
         sections.push(`【内容设定】\n${settingLines.join('\n')}`)
+      }
+
+      if (setting.overallOutline && String(setting.overallOutline).trim()) {
+        sections.push(`【整体大纲】\n${String(setting.overallOutline).trim()}`)
+      }
+    }
+
+    if (memory.chapters?.length) {
+      const chapterOutlineLines = memory.chapters
+        .filter((chapter) => chapter.outline && String(chapter.outline).trim())
+        .map((chapter, index) => {
+          const title = chapter.title ? String(chapter.title) : `第${index + 1}章`
+          return `${index + 1}. ${title}\n${String(chapter.outline).trim()}`
+        })
+
+      if (chapterOutlineLines.length) {
+        sections.push(`【章节大纲】\n${chapterOutlineLines.join('\n\n')}`)
       }
     }
 

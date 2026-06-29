@@ -13,7 +13,7 @@ const { findOwnedNovel, findOwnedChapter } = require('../services/novelQueryServ
 const { NOT_FOUND, COMMON } = require('../constants/messages')
 
 const CHARACTER_FIELDS = ['name', 'role', 'identity', 'personality', 'appearance', 'relationship', 'secret', 'arc', 'notes', 'priority', 'isActive']
-const SETTING_FIELDS = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes']
+const SETTING_FIELDS = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes', 'overallOutline']
 
 // 构建小说+章节的版本快照
 const buildNovelSnapshot = (novel, chapters) => ({
@@ -528,12 +528,12 @@ router.delete('/trash/novels/:id/permanent', verifyToken, asyncHandler(async (re
 router.post('/:novelId/chapters',
   verifyToken,
   body('title').optional().trim(),
-  body('content').trim().notEmpty().withMessage('章节内容不能为空'),
+  body('content').optional().trim(),
   body('plot').optional().trim(),
   validateRequest,
   asyncHandler(async (req, res) => {
     const { novelId } = req.params
-    const { title, content, plot } = req.body
+    const { title, content = '', plot } = req.body
     const novel = await findOwnedNovel(novelId, req.userId, { includeDeleted: true })
     if (!novel) {
       return res.status(404).json({ message: NOT_FOUND.NOVEL })
@@ -663,7 +663,7 @@ router.put('/chapters/:id',
       return res.status(404).json({ message: NOT_FOUND.CHAPTER })
     }
 
-    const patch = buildPatch(req.body, ['title', 'content', 'plot'])
+    const patch = buildPatch(req.body, ['title', 'content', 'plot', 'outline'])
 
     if (Object.keys(patch).length === 0) {
       return res.status(400).json({ message: COMMON.NO_UPDATE_FIELDS })

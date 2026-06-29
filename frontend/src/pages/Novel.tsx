@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button, Typography, Space, Row, Col, Form, Input, Modal, message, Select, Dropdown, Card, Tabs, List, Tag, Switch, InputNumber, Collapse } from 'antd'
-import { DragOutlined, DownloadOutlined, HistoryOutlined, BranchesOutlined, MoreOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { DragOutlined, DownloadOutlined, HistoryOutlined, BranchesOutlined, MoreOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
 const { Option } = Select
@@ -15,6 +15,7 @@ import { useAuth } from '@hooks/useAuth'
 import { useMediaQuery } from '@hooks/useMediaQuery'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import Loading from '@components/Loading'
+import NovelOutlinePanel from '@components/NovelOutlinePanel'
 import type { CharacterCard, Chapter, NovelSetting, AiStreamPhase } from '@app-types/index'
 import { getAiStreamPhaseLabel } from '@utils/aiStream'
 import '@styles/Novel.css'
@@ -639,13 +640,57 @@ const Novel: React.FC = () => {
     }
   }
 
+  const handleCreateBlankChapter = async () => {
+    if (!id) return
+    try {
+      const chapterNumber = chapters.length + 1
+      const defaultTitle = `第${chapterNumber}章`
+      const newChapter = await novelService.createChapter(Number(id), defaultTitle, '')
+      message.success('已创建新章节，开始码字吧')
+      await fetchChapters()
+      setCurrentChapter(newChapter)
+      setChapterTitle(defaultTitle)
+      setEditorState(EditorState.createEmpty())
+      setEditing(true)
+    } catch (error) {
+      console.error('创建章节失败:', error)
+      message.error('创建章节失败')
+    }
+  }
+
+  const handleUpdateChapter = async () => {
+    if (!currentChapter) {
+      message.warning('请先选择一个章节')
+      return
+    }
+    const contentText = editorState.getCurrentContent().getPlainText()
+    if (!contentText.trim()) {
+      message.error('章节内容不能为空')
+      return
+    }
+    try {
+      const updated = await novelService.updateChapterContent(
+        currentChapter.id,
+        contentText,
+        currentChapter.plot
+      )
+      message.success('保存成功')
+      await fetchChapters()
+      setCurrentChapter(updated)
+      setEditing(false)
+    } catch (error) {
+      console.error('保存失败:', error)
+      message.error('保存失败')
+    }
+  }
+
   const handleSaveChapter = async (content: string, plot?: string) => {
     try {
       if (!content.trim()) {
         message.error('章节内容不能为空')
         return
       }
-      
+
       // 为续写和润色设置默认标题
       let finalTitle = chapterTitle
       if (!finalTitle.trim()) {
@@ -657,16 +702,12 @@ const Novel: React.FC = () => {
           finalTitle = '未命名章节'
         }
       }
-      
+
       const newChapter = await novelService.createChapter(Number(id), finalTitle, content, plot)
       message.success('保存成功')
-      
-      // 重新加载章节列表
+
       await fetchChapters()
-      
-      // 选中新创建的章节
       loadChapter(newChapter)
-      
     } catch (error) {
       console.error('保存失败:', error)
       message.error('保存失败')
@@ -790,6 +831,21 @@ const Novel: React.FC = () => {
           )
         },
         {
+          key: 'outline',
+          label: '大纲',
+          children: (
+            <NovelOutlinePanel
+              novelId={Number(id)}
+              novelName={undefined}
+              chapters={chapters}
+              novelSetting={novelSetting}
+              defaultNovelType={genre === '自定义' ? customGenre || '玄幻' : genre}
+              onSettingUpdated={(setting) => setNovelSetting(setting)}
+              onChaptersUpdated={fetchChapters}
+            />
+          )
+        },
+        {
           key: 'setting',
           label: '内容设定',
           children: (
@@ -858,7 +914,12 @@ const Novel: React.FC = () => {
       {showHeader && (
         <Row justify="space-between" align="middle" style={{ marginBottom: '1rem' }}>
           <Title level={4} style={{ margin: 0 }}>章节列表</Title>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>共 {chapters.length} 章</span>
+          <Space>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>共 {chapters.length} 章</span>
+            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleCreateBlankChapter}>
+              新建章节
+            </Button>
+          </Space>
         </Row>
       )}
       {chapters.length === 0 ? (
@@ -868,7 +929,15 @@ const Novel: React.FC = () => {
           border: '1px dashed rgba(59, 130, 246, 0.3)',
           borderRadius: 8
         }}>
-          暂无章节，点击&quot;生成章节&quot;开始创作
+          <div style={{ marginBottom: '1rem' }}>暂无章节，新建章节自行码字，或使用 AI 生成</div>
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateBlankChapter}>
+              新建章节
+            </Button>
+            <Button onClick={openGenerateModal}>
+              生成章节
+            </Button>
+          </Space>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1005,7 +1074,10 @@ const Novel: React.FC = () => {
             >
               生成历史
             </Button>
-            <Button type="primary" className="novel-action-button" onClick={() => {
+            <Button type="primary" className="novel-action-button" icon={<PlusOutlined />} onClick={handleCreateBlankChapter}>
+              新建章节
+            </Button>
+            <Button className="novel-action-button" onClick={() => {
               setActionType('generate')
               setModalVisible(true)
             }}>
@@ -1035,15 +1107,7 @@ const Novel: React.FC = () => {
             }}>
               内容润色
             </Button>
-            <Button type="default" onClick={() => {
-              if (!currentChapter) {
-                message.warning('请先选择一个章节')
-                return
-              }
-              const contentState = editorState.getCurrentContent()
-              const contentText = contentState.getPlainText()
-              handleSaveChapter(contentText, currentChapter?.plot)
-            }}>
+            <Button type="default" onClick={handleUpdateChapter}>
               保存章节
             </Button>
             <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
@@ -1124,6 +1188,11 @@ const Novel: React.FC = () => {
                   >
                     {editing ? '取消编辑' : '编辑内容'}
                   </Button>
+                  {editing && (
+                    <Button type="primary" onClick={handleUpdateChapter}>
+                      保存
+                    </Button>
+                  )}
                 </Space>
               </Row>
               
@@ -1158,7 +1227,10 @@ const Novel: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col span={24}>
             <div className="novel-empty-state">
-              <Title level={5}>请从章节列表中选择一个章节查看</Title>
+              <Title level={5}>请新建章节开始码字，或从章节列表中选择章节查看</Title>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateBlankChapter} style={{ marginTop: '1rem' }}>
+                新建章节
+              </Button>
             </div>
           </Col>
         </Row>
@@ -1189,6 +1261,9 @@ const Novel: React.FC = () => {
       )}
 
       <div className="novel-ai-bar" role="toolbar" aria-label="创作操作">
+        <Button size="small" icon={<PlusOutlined />} onClick={handleCreateBlankChapter}>
+          新建
+        </Button>
         <Button type="primary" size="small" onClick={openGenerateModal}>
           生成
         </Button>
@@ -1198,17 +1273,7 @@ const Novel: React.FC = () => {
         <Button size="small" onClick={openPolishModal}>
           润色
         </Button>
-        <Button
-          size="small"
-          onClick={() => {
-            if (!currentChapter) {
-              message.warning('请先选择一个章节')
-              return
-            }
-            const contentState = editorState.getCurrentContent()
-            handleSaveChapter(contentState.getPlainText(), currentChapter?.plot)
-          }}
-        >
+        <Button size="small" onClick={handleUpdateChapter}>
           保存
         </Button>
       </div>

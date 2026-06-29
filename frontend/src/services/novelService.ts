@@ -175,6 +175,12 @@ export const novelService = {
     return response.data.chapter
   },
 
+  // 更新章节大纲
+  updateChapterOutline: async (chapterId: number, outline: string): Promise<Chapter> => {
+    const response = await api.put(`/novel/chapters/${chapterId}`, { outline })
+    return response.data.chapter
+  },
+
   // 更新章节顺序
   updateChapterOrder: async (sourceChapterId: number, targetChapterId: number): Promise<void> => {
     await api.put('/novel/chapters/order', { sourceChapterId, targetChapterId })

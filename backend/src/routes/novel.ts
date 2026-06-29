@@ -14,7 +14,7 @@ import { COMMON, NOT_FOUND } from '../constants/messages'
 const router = Router()
 
 const CHARACTER_FIELDS = ['name', 'role', 'identity', 'personality', 'appearance', 'relationship', 'secret', 'arc', 'notes', 'priority', 'isActive'] as const
-const SETTING_FIELDS = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes'] as const
+const SETTING_FIELDS = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes', 'overallOutline'] as const
 
 const toNumber = (value: string | number | undefined): number => parseInt(String(value), 10)
 const optionalString = (value: unknown): string | null | undefined => {
@@ -36,6 +36,7 @@ const buildNovelSnapshot = (novel: Novel, chapters: Chapter[]): NovelSnapshot =>
     title: chapter.title,
     content: chapter.content,
     plot: chapter.plot,
+    outline: chapter.outline,
     createdAt: chapter.createdAt.toISOString(),
     updatedAt: chapter.updatedAt.toISOString()
   }))
@@ -63,7 +64,8 @@ const buildSettingPatch = (body: Record<string, unknown>): Partial<Pick<NovelSet
   plotRules: optionalString(body.plotRules),
   taboos: optionalString(body.taboos),
   styleGuide: optionalString(body.styleGuide),
-  notes: optionalString(body.notes)
+  notes: optionalString(body.notes),
+  overallOutline: optionalString(body.overallOutline)
 })
 
 const buildNovelPatch = (body: Record<string, unknown>): Partial<Pick<Novel, 'name' | 'description'>> => ({
@@ -71,10 +73,11 @@ const buildNovelPatch = (body: Record<string, unknown>): Partial<Pick<Novel, 'na
   description: optionalString(body.description)
 })
 
-const buildChapterPatch = (body: Record<string, unknown>): Partial<Pick<Chapter, 'title' | 'content' | 'plot'>> => ({
+const buildChapterPatch = (body: Record<string, unknown>): Partial<Pick<Chapter, 'title' | 'content' | 'plot' | 'outline'>> => ({
   title: optionalString(body.title),
   content: typeof body.content === 'string' ? body.content : undefined,
-  plot: optionalString(body.plot)
+  plot: optionalString(body.plot),
+  outline: optionalString(body.outline)
 })
 
 router.post('/',
@@ -408,12 +411,12 @@ router.delete('/trash/novels/:id/permanent', verifyToken, asyncHandler(async (re
 router.post('/:novelId/chapters',
   verifyToken,
   body('title').optional().trim(),
-  body('content').trim().notEmpty().withMessage('章节内容不能为空'),
+  body('content').optional().trim(),
   body('plot').optional().trim(),
   validateRequest,
   asyncHandler(async (req, res) => {
     const novelId = toNumber(req.params.novelId)
-    const { title, content, plot } = req.body as { title?: string; content: string; plot?: string }
+    const { title, content = '', plot } = req.body as { title?: string; content?: string; plot?: string }
     const novel = await findOwnedNovel(novelId, req.userId!, { includeDeleted: true })
     if (!novel) return res.status(404).json({ message: NOT_FOUND.NOVEL })
     const chapterCount = await Chapter.count({ where: { novelId, isDeleted: false } })
@@ -478,6 +481,7 @@ router.put('/chapters/:id',
   body('title').optional().trim().notEmpty().withMessage('章节标题不能为空'),
   body('content').optional().trim().notEmpty().withMessage('章节内容不能为空'),
   body('plot').optional().trim(),
+  body('outline').optional().trim(),
   validateRequest,
   asyncHandler(async (req, res) => {
     const chapter = await findOwnedChapter(req.params.id, req.userId!)

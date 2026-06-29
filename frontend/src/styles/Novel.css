@@ -547,3 +547,190 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
     gap: 1rem;
   }
 }
+
+/* 大纲面板 */
+.novel-outline-section {
+  background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+  border: 1px solid var(--border-20);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.novel-outline-section-title {
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.novel-outline-textarea {
+  font-family: inherit;
+  line-height: 1.7;
+}
+
+.novel-outline-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.novel-outline-chapter-item {
+  border-bottom: 1px solid var(--border-20) !important;
+  padding: 16px 0 !important;
+}
+
+.novel-outline-chapter-title {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.novel-outline-ai-preview {
+  min-height: 80px;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-color) 70%, transparent);
+  border: 1px dashed var(--primary-50);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.novel-outline-diagram-fullscreen-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.novel-outline-diagram-fullscreen-root.is-fullscreen,
+.novel-outline-diagram-fullscreen-root:fullscreen,
+.novel-outline-diagram-fullscreen-root:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  background: var(--surface-color, #0f172a);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.novel-outline-diagram-fullscreen-toolbar {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-20);
+}
+
+.novel-outline-diagram-fullscreen-root.is-fullscreen .novel-outline-diagram-viewport,
+.novel-outline-diagram-fullscreen-root:fullscreen .novel-outline-diagram-viewport,
+.novel-outline-diagram-fullscreen-root:-webkit-full-screen .novel-outline-diagram-viewport {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+}
+
+.novel-outline-diagram-fullscreen-root.is-fullscreen .novel-outline-diagram-viewport .ant-spin-nested-loading,
+.novel-outline-diagram-fullscreen-root.is-fullscreen .novel-outline-diagram-viewport .ant-spin-container,
+.novel-outline-diagram-fullscreen-root:fullscreen .novel-outline-diagram-viewport .ant-spin-nested-loading,
+.novel-outline-diagram-fullscreen-root:fullscreen .novel-outline-diagram-viewport .ant-spin-container {
+  min-height: 100%;
+}
+
+.novel-outline-diagram-viewport {
+  min-height: 360px;
+  max-height: 520px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-color) 80%, transparent);
+  border: 1px solid var(--border-20);
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+
+.novel-outline-diagram-viewport.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.novel-outline-diagram-viewport .ant-spin-nested-loading,
+.novel-outline-diagram-viewport .ant-spin-container {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+.novel-outline-diagram-canvas {
+  display: inline-block;
+  padding: 0;
+  transform-origin: top left;
+  transition: transform 0.15s ease;
+  will-change: transform;
+}
+
+.novel-outline-diagram-viewport.is-dragging .novel-outline-diagram-canvas {
+  transition: none;
+}
+
+.novel-outline-diagram {
+  min-height: 320px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.novel-outline-diagram svg {
+  display: block;
+  max-width: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.novel-outline-diagram svg text,
+.novel-outline-diagram svg tspan {
+  font-size: 15px !important;
+}
+
+.novel-outline-diagram svg foreignObject div,
+.novel-outline-diagram svg foreignObject span,
+.novel-outline-diagram svg foreignObject p,
+.novel-outline-diagram svg .nodeLabel {
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+}
+
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg text,
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg tspan,
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg foreignObject div,
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg foreignObject span,
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg foreignObject p,
+.novel-outline-diagram-viewport--flowchart .novel-outline-diagram svg .nodeLabel {
+  font-size: 16px !important;
+}
+
+.novel-outline-zoom-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  min-width: 42px;
+}
+
+.novel-outline-diagram-source {
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-color) 80%, transparent);
+  border: 1px solid var(--border-20);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.novel-outline-diagram-error {
+  padding: 24px;
+  text-align: center;
+  color: #ef4444;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+}

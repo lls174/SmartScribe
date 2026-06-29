@@ -1,4 +1,4 @@
-﻿﻿﻿﻿const { DataTypes } = require('sequelize')
+﻿const { DataTypes } = require('sequelize')
 const sequelize = require('../config/db')
 
 const Chapter = sequelize.define('Chapter', {
@@ -24,6 +24,10 @@ const Chapter = sequelize.define('Chapter', {
     allowNull: false
   },
   plot: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  outline: {
     type: DataTypes.TEXT,
     allowNull: true
   },

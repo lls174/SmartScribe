@@ -44,6 +44,7 @@ export interface Chapter {
   title?: string | null
   content: string
   plot?: string | null
+  outline?: string | null
   order: number
   isDeleted?: boolean
   deletedAt?: string | null
@@ -80,6 +81,7 @@ export interface NovelSetting {
   taboos?: string | null
   styleGuide?: string | null
   notes?: string | null
+  overallOutline?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -166,7 +168,7 @@ export interface UsageSummary {
 
 export interface NovelSnapshot {
   novel?: Pick<Novel, 'id' | 'name' | 'description' | 'createdAt' | 'updatedAt'>
-  chapters?: Array<Pick<Chapter, 'id' | 'order' | 'title' | 'content' | 'plot' | 'createdAt' | 'updatedAt'>>
+  chapters?: Array<Pick<Chapter, 'id' | 'order' | 'title' | 'content' | 'plot' | 'outline' | 'createdAt' | 'updatedAt'>>
 }
 
 export interface NovelVersion {

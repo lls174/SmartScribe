@@ -100,6 +100,7 @@ export class Chapter extends Model<InferAttributes<Chapter>, InferCreationAttrib
   declare title: string | null
   declare content: string
   declare plot: string | null
+  declare outline: string | null
   declare order: CreationOptional<number>
   declare isDeleted: CreationOptional<boolean>
   declare deletedAt: Date | null
@@ -113,6 +114,7 @@ Chapter.init({
   title: { type: DataTypes.STRING, allowNull: true },
   content: { type: DataTypes.TEXT, allowNull: false },
   plot: { type: DataTypes.TEXT, allowNull: true },
+  outline: { type: DataTypes.TEXT, allowNull: true },
   order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   isDeleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   deletedAt: { type: DataTypes.DATE, allowNull: true },
@@ -301,6 +303,7 @@ export class NovelSetting extends Model<InferAttributes<NovelSetting>, InferCrea
   declare taboos: string | null
   declare styleGuide: string | null
   declare notes: string | null
+  declare overallOutline: string | null
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 }
@@ -316,6 +319,7 @@ NovelSetting.init({
   taboos: { type: DataTypes.TEXT, allowNull: true },
   styleGuide: { type: DataTypes.TEXT, allowNull: true },
   notes: { type: DataTypes.TEXT, allowNull: true },
+  overallOutline: { type: DataTypes.TEXT, allowNull: true },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, { sequelize, modelName: 'NovelSetting', tableName: 'novel_settings' })

@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:init": "tsx scripts/initDb.ts",
     "db:migrate:rbac-usage": "node scripts/migrateRbacUsage.js",
-    "db:migrate:novel-memory": "node scripts/migrateNovelMemory.js",
+    "db:migrate:novel-outline": "tsx scripts/migrateNovelOutline.ts",
     "db:migrate:novel-version": "tsx scripts/migrateNovelVersion.ts",
     "db:migrate:feedback": "tsx scripts/migrateFeedback.ts",
     "db:migrate:ai-credential": "tsx scripts/migrateAiCredential.ts",

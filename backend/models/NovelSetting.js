@@ -48,6 +48,10 @@ const NovelSetting = sequelize.define('NovelSetting', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  overallOutline: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
