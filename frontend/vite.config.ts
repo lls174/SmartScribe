@@ -46,6 +46,31 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: 'window'
+    },
+    build: {
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (
+              id.includes('node_modules/antd')
+              || id.includes('node_modules/@ant-design/icons')
+              || id.includes('node_modules/rc-')
+            ) {
+              return 'antd'
+            }
+            if (id.includes('node_modules/draft-js')) {
+              return 'draft-js'
+            }
+            if (id.includes('node_modules/live2d')) {
+              return 'live2d'
+            }
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+              return 'react-vendor'
+            }
+          }
+        }
+      }
     }
   }
 })

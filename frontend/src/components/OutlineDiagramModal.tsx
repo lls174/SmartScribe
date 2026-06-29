@@ -14,6 +14,7 @@ import {
   outlineToJsonTree,
   type DiagramType
 } from '@/utils/outlineDiagram'
+import { loadMermaid } from '@/utils/loadMermaid'
 
 const { Paragraph } = Typography
 
@@ -146,7 +147,7 @@ const OutlineDiagramModal: React.FC<OutlineDiagramModalProps> = ({
         const container = await waitForContainer()
         if (cancelled || !container) return
 
-        const mermaid = (await import('mermaid')).default
+        const mermaid = await loadMermaid()
         mermaid.initialize(getMermaidConfig(diagramType))
 
         container.innerHTML = ''

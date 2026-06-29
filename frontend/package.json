@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/copy-mermaid.mjs && tsc && node --max-old-space-size=2048 node_modules/vite/bin/vite.js build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
-    "postinstall": "node scripts/copy-live2d-core.mjs",
+    "postinstall": "node scripts/copy-live2d-core.mjs && node scripts/copy-mermaid.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,7 +20,6 @@
     "draft-js": "^0.11.7",
     "live2d-renderer": "^0.6.6",
     "live2dcubismcore": "^1.0.2",
-    "mermaid": "^11.16.0",
     "path-browserify": "^1.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -36,6 +35,7 @@
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "mermaid": "^11.16.0",
     "typescript": "^5.2.2",
     "vite": "^5.1.4",
     "vitest": "^2.1.9"
