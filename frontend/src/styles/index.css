@@ -182,7 +182,7 @@ a:hover {
   -webkit-text-fill-color: var(--text-primary);
   caret-color: var(--primary-color);
   border-radius: 6px;
-  height: auto;
+  height: 44px;
   padding: 4px 12px;
   font-size: 14px;
   transition: all 0.3s ease;
