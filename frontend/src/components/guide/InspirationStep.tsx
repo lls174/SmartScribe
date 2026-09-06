@@ -55,8 +55,8 @@ export default function InspirationStep({
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space wrap>
               <Text strong>{proposal.titleSuggestion}</Text>
-              <Tag color="blue">{proposal.genre}</Tag>
-              <Tag>{proposal.style}</Tag>
+              <Tag color="blue" style={{ whiteSpace: 'normal' }}>{proposal.genre}</Tag>
+              <Tag style={{ width: '100%', whiteSpace: 'normal' }}>{proposal.style}</Tag>
             </Space>
             <Paragraph>{proposal.logline}</Paragraph>
             <Descriptions size="small" column={1}>
