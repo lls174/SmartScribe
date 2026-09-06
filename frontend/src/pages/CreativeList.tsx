@@ -47,7 +47,7 @@ const CreativeList: React.FC = () => {
 
   useEffect(() => {
     loadCreatives()
-  }, [page, limit])
+  }, [page, limit]) // eslint-disable-line react-hooks/exhaustive-deps -- 分页参数是列表请求的唯一触发源
 
   const handleViewCreative = (creative: any) => {
     setCurrentCreative(creative)

@@ -9,52 +9,52 @@
 }
 
 .profile-title {
-  font-size: 2rem !important;
-  font-weight: 600 !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
 }
 
 .profile-card {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: rgba(26, 31, 58, 0.6);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .profile-card .ant-card-body {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .profile-tabs .ant-tabs-nav {
-  background: rgba(26, 31, 58, 0.4) !important;
-  margin-bottom: 0 !important;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: rgba(26, 31, 58, 0.4);
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .profile-tabs .ant-tabs-nav::before {
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 .profile-tabs .ant-tabs-tab {
-  background: transparent !important;
-  border: none !important;
-  color: #a5b4fc !important;
-  padding: 12px 24px !important;
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  padding: 12px 24px;
 }
 
 .profile-tabs .ant-tabs-tab-active {
-  background: rgba(0, 212, 255, 0.1) !important;
-  color: #00d4ff !important;
+  background: rgba(0, 212, 255, 0.1);
+  color: #00d4ff;
 }
 
 .profile-tabs .ant-tabs-tab:hover {
-  color: #00d4ff !important;
+  color: #00d4ff;
 }
 
 .profile-tabs .ant-tabs-ink-bar {
-  background: #00d4ff !important;
+  background: #00d4ff;
 }
 
 .profile-tabs .ant-tabs-content {
-  padding: 24px !important;
+  padding: 24px;
 }
 
 .profile-form {
@@ -62,40 +62,40 @@
 }
 
 .profile-form .ant-form-item-label > label {
-  color: #a5b4fc !important;
+  color: #a5b4fc;
 }
 
 .profile-form .ant-input-affix-wrapper {
-  background: rgba(26, 31, 58, 0.6) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
-  padding: 4px 11px !important;
+  background: rgba(26, 31, 58, 0.6);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 4px 11px;
 }
 
 .profile-form .ant-input-affix-wrapper:hover {
-  border-color: rgba(0, 212, 255, 0.5) !important;
+  border-color: rgba(0, 212, 255, 0.5);
 }
 
 .profile-form .ant-input-affix-wrapper-focused {
-  border-color: #00d4ff !important;
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1) !important;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
 }
 
 .profile-form .ant-input-affix-wrapper .ant-input {
-  background: transparent !important;
-  border: none !important;
-  color: #e0e7ff !important;
+  background: transparent;
+  border: none;
+  color: #e0e7ff;
 }
 
 .profile-form .ant-input-affix-wrapper .ant-input::placeholder {
-  color: #6b7280 !important;
+  color: #6b7280;
 }
 
 .profile-form .ant-input-affix-wrapper .ant-input-suffix {
-  color: #a5b4fc !important;
+  color: #a5b4fc;
 }
 
 .profile-form .ant-input-affix-wrapper .ant-input-prefix {
-  color: #a5b4fc !important;
+  color: #a5b4fc;
 }
 
 .profile-info {
@@ -108,12 +108,12 @@
 }
 
 .profile-divider {
-  border-color: rgba(59, 130, 246, 0.3) !important;
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .profile-shortcut-item--danger {
-  border-color: color-mix(in srgb, var(--error-color) 35%, transparent) !important;
-  color: var(--error-color) !important;
+  border-color: color-mix(in srgb, var(--error-color) 35%, transparent);
+  color: var(--error-color);
   cursor: pointer;
   font: inherit;
   width: 100%;
@@ -125,7 +125,7 @@
   }
 
   .profile-title {
-    font-size: 1.5rem !important;
+    font-size: 1.5rem;
   }
 
   .profile-form {

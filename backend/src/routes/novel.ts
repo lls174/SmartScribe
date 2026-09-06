@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { Op, Sequelize } from 'sequelize'
 import { body } from 'express-validator'
-import type { NovelSnapshot } from '../../../shared/types'
-import { CharacterCard, Chapter, GenerationHistory, Novel, NovelSetting, NovelVersion } from '../models'
+import type { CreationStage, NovelSnapshot, ProposalUserAction } from '../../../shared/types'
+import { AiProposalLog, CharacterCard, Chapter, GenerationHistory, Novel, NovelSetting, NovelVersion } from '../models'
 import { verifyToken } from '../middleware/auth'
 import { validateRequest } from '../middleware/validate'
 import { asyncHandler } from '../utils/asyncHandler'
@@ -10,11 +10,14 @@ import { parsePagination } from '../utils/pagination'
 import { isMissingTableError } from '../utils/dbErrors'
 import { findOwnedChapter, findOwnedNovel } from '../services/novelQueryService'
 import { COMMON, NOT_FOUND } from '../constants/messages'
+import { getGuideStatus, resolveStage } from '../services/guideEngine'
 
 const router = Router()
 
 const CHARACTER_FIELDS = ['name', 'role', 'identity', 'personality', 'appearance', 'relationship', 'secret', 'arc', 'notes', 'priority', 'isActive'] as const
 const SETTING_FIELDS = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes', 'overallOutline'] as const
+const CONFIRMABLE_CHARACTER_FIELDS = ['name', 'role', 'identity', 'personality', 'appearance', 'relationship', 'secret', 'arc', 'notes', 'priority', 'isActive'] as const
+const CREATION_STAGES: CreationStage[] = ['inspiration', 'worldview', 'characters', 'outline', 'writing']
 
 const toNumber = (value: string | number | undefined): number => parseInt(String(value), 10)
 const optionalString = (value: unknown): string | null | undefined => {
@@ -108,6 +111,85 @@ router.get('/:id', verifyToken, asyncHandler(async (req, res) => {
   res.json(novel)
 }, '获取小说详情失败'))
 
+router.get('/:id/guide-status', verifyToken, asyncHandler(async (req, res) => {
+  const novel = await findOwnedNovel(req.params.id, req.userId!)
+  if (!novel) return res.status(403).json({ message: '小说不存在或无权访问' })
+  res.json(await getGuideStatus(novel))
+}, '获取创作向导状态失败'))
+
+router.post('/:id/advance-stage',
+  verifyToken,
+  body('stage').optional().isIn(CREATION_STAGES).withMessage('创作阶段无效'),
+  validateRequest,
+  asyncHandler(async (req, res) => {
+    const novel = await findOwnedNovel(req.params.id, req.userId!)
+    if (!novel) return res.status(403).json({ message: '小说不存在或无权访问' })
+    const requested = (req.body as { stage?: CreationStage }).stage
+    const nextStage = resolveStage(novel.creationStage, requested)
+    const stageProgress = {
+      ...(novel.stageProgress || {}),
+      [novel.creationStage]: { completedAt: new Date().toISOString() }
+    }
+    await novel.update({ creationStage: nextStage, stageProgress })
+    res.json(await getGuideStatus(novel))
+  }, '推进创作阶段失败')
+)
+
+router.post('/:id/confirm-field',
+  verifyToken,
+  body('targetType').isIn(['novel', 'setting', 'character']).withMessage('确认对象类型无效'),
+  body('field').trim().notEmpty().withMessage('字段不能为空'),
+  body('targetId').optional().isInt({ min: 1 }).withMessage('对象 ID 无效'),
+  body('proposalLogId').optional().isInt({ min: 1 }).withMessage('提案日志 ID 无效'),
+  body('userAction').optional().isIn(['adopted', 'edited']).withMessage('提案操作无效'),
+  validateRequest,
+  asyncHandler(async (req, res) => {
+    const novel = await findOwnedNovel(req.params.id, req.userId!)
+    if (!novel) return res.status(403).json({ message: '小说不存在或无权访问' })
+    const payload = req.body as {
+      targetType: 'novel' | 'setting' | 'character'
+      field: string
+      value?: unknown
+      targetId?: number
+      proposalLogId?: number
+      userAction?: ProposalUserAction
+    }
+
+    if (payload.targetType === 'novel') {
+      if (!['name', 'description'].includes(payload.field) || typeof payload.value !== 'string') {
+        return res.status(400).json({ message: '小说字段或字段值无效' })
+      }
+      await novel.update({ [payload.field]: payload.value })
+    } else if (payload.targetType === 'setting') {
+      if (!SETTING_FIELDS.includes(payload.field as typeof SETTING_FIELDS[number])) {
+        return res.status(400).json({ message: '设定字段无效' })
+      }
+      const [setting] = await NovelSetting.findOrCreate({ where: { novelId: novel.id }, defaults: { novelId: novel.id } })
+      const patch: Record<string, unknown> = { reviewStatus: 'confirmed', confirmedAt: new Date(), stale: false }
+      if (typeof payload.value === 'string') patch[payload.field] = payload.value
+      await setting.update(patch)
+    } else {
+      if (!payload.targetId) return res.status(400).json({ message: '确认人物卡必须提供 targetId' })
+      if (!CONFIRMABLE_CHARACTER_FIELDS.includes(payload.field as typeof CONFIRMABLE_CHARACTER_FIELDS[number])) {
+        return res.status(400).json({ message: '人物卡字段无效' })
+      }
+      const card = await CharacterCard.findOne({ where: { id: payload.targetId, novelId: novel.id } })
+      if (!card) return res.status(404).json({ message: NOT_FOUND.CHARACTER_CARD })
+      const patch: Record<string, unknown> = { reviewStatus: 'confirmed', confirmedAt: new Date(), stale: false }
+      if (typeof payload.value !== 'undefined') patch[payload.field] = payload.value
+      await card.update(patch)
+    }
+
+    if (payload.proposalLogId) {
+      await AiProposalLog.update(
+        { userAction: payload.userAction === 'edited' ? 'edited' : 'adopted' },
+        { where: { id: payload.proposalLogId, novelId: novel.id, userId: req.userId! } }
+      )
+    }
+    res.json({ message: '字段已确认', guideStatus: await getGuideStatus(novel) })
+  }, '确认字段失败')
+)
+
 router.get('/:novelId/characters', verifyToken, asyncHandler(async (req, res) => {
   const novel = await findOwnedNovel(req.params.novelId, req.userId!)
   if (!novel) {
@@ -152,7 +234,9 @@ router.post('/:novelId/characters',
       arc: typeof payload.arc === 'string' ? payload.arc : null,
       notes: typeof payload.notes === 'string' ? payload.notes : null,
       priority: typeof payload.priority === 'number' ? payload.priority : 5,
-      isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true
+      isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true,
+      reviewStatus: 'confirmed',
+      confirmedAt: new Date()
     })
     res.status(201).json(card)
   }, '创建人物卡失败')
@@ -179,7 +263,15 @@ router.put('/:novelId/characters/:cardId',
     const card = await CharacterCard.findOne({ where: { id: toNumber(req.params.cardId), novelId: novel.id } })
     if (!card) return res.status(404).json({ message: NOT_FOUND.CHARACTER_CARD })
 
-    await card.update(buildCharacterPatch(req.body as Record<string, unknown>))
+    const wasConfirmed = card.reviewStatus === 'confirmed'
+    await card.update({
+      ...buildCharacterPatch(req.body as Record<string, unknown>),
+      reviewStatus: 'confirmed',
+      confirmedAt: new Date()
+    })
+    if (wasConfirmed) {
+      await Chapter.update({ stale: true, stalePlot: true }, { where: { novelId: novel.id, isDeleted: false } })
+    }
     res.json(card)
   }, '更新人物卡失败')
 )
@@ -207,10 +299,22 @@ router.put('/:novelId/setting',
   asyncHandler(async (req, res) => {
     const novel = await findOwnedNovel(req.params.novelId, req.userId!)
     if (!novel) return res.status(404).json({ message: NOT_FOUND.NOVEL })
-    const patch = buildSettingPatch(req.body as Record<string, unknown>)
+    const patch = {
+      ...buildSettingPatch(req.body as Record<string, unknown>),
+      reviewStatus: 'confirmed' as const,
+      confirmedAt: new Date()
+    }
     const [setting] = await NovelSetting.findOrCreate({ where: { novelId: novel.id }, defaults: { novelId: novel.id, ...patch } })
     if (Object.keys(patch).length > 0) {
+      const changedConfirmedSetting = setting.reviewStatus === 'confirmed'
+        && SETTING_FIELDS.some((field) => typeof patch[field] !== 'undefined' && patch[field] !== setting[field])
       await setting.update(patch)
+      if (changedConfirmedSetting) {
+        await Promise.all([
+          CharacterCard.update({ stale: true }, { where: { novelId: novel.id, reviewStatus: 'confirmed' } }),
+          Chapter.update({ stale: true, stalePlot: true }, { where: { novelId: novel.id, isDeleted: false } })
+        ])
+      }
     }
     res.json(setting)
   }, '保存内容设定失败')
@@ -488,16 +592,30 @@ router.put('/chapters/:id',
     if (!chapter) return res.status(404).json({ message: NOT_FOUND.CHAPTER })
     const patch = buildChapterPatch(req.body as Record<string, unknown>)
     if (Object.keys(patch).length === 0) return res.status(400).json({ message: COMMON.NO_UPDATE_FIELDS })
+    if (typeof patch.content === 'string' && typeof patch.plot === 'undefined') {
+      Object.assign(patch, { stalePlot: true })
+    }
     await chapter.update(patch)
     res.json({ message: '更新成功', chapter })
   }, '更新章节失败')
 )
 
+router.get('/chapters/:id/detail', verifyToken, asyncHandler(async (req, res) => {
+  const chapter = await findOwnedChapter(req.params.id, req.userId!)
+  if (!chapter) return res.status(404).json({ message: NOT_FOUND.CHAPTER })
+  res.json(chapter)
+}, '获取章节详情失败'))
+
 router.get('/:novelId/chapters', verifyToken, asyncHandler(async (req, res) => {
   const novelId = toNumber(req.params.novelId)
   const novel = await findOwnedNovel(novelId, req.userId!)
   if (!novel) return res.status(404).json({ message: NOT_FOUND.NOVEL })
-  const chapters = await Chapter.findAll({ where: { novelId, isDeleted: false }, order: [['order', 'ASC']] })
+  const lightweight = req.query.lightweight === 'true'
+  const chapters = await Chapter.findAll({
+    where: { novelId, isDeleted: false },
+    order: [['order', 'ASC']],
+    attributes: lightweight ? { exclude: ['content'] } : undefined
+  })
   res.json(chapters)
 }, '获取章节列表失败'))
 

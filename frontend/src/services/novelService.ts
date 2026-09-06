@@ -1,5 +1,6 @@
 import api from './api'
 import type { CharacterCard, Chapter, DeletedChapter, DeletedNovel, Novel, NovelSetting } from '@app-types/index'
+import type { CreationStage, GuideStatus, InspirationProposal } from '@/types/collaboration'
 
 export interface NovelVersion {
   id: number
@@ -132,8 +133,14 @@ export const novelService = {
   },
 
   // 获取章节列表
-  getChapters: async (novelId: number): Promise<Chapter[]> => {
-    const response = await api.get(`/novel/${novelId}/chapters`)
+  getChapters: async (novelId: number, lightweight = true): Promise<Chapter[]> => {
+    const response = await api.get(`/novel/${novelId}/chapters`, { params: { lightweight } })
+    return response.data.map((chapter: Partial<Chapter>) => ({ ...chapter, content: chapter.content || '' })) as Chapter[]
+  },
+
+  // 按需加载章节全文，避免长篇小说首屏下载全部正文
+  getChapter: async (chapterId: number): Promise<Chapter> => {
+    const response = await api.get(`/novel/chapters/${chapterId}/detail`)
     return response.data
   },
 
@@ -184,5 +191,46 @@ export const novelService = {
   // 更新章节顺序
   updateChapterOrder: async (sourceChapterId: number, targetChapterId: number): Promise<void> => {
     await api.put('/novel/chapters/order', { sourceChapterId, targetChapterId })
+  },
+
+  /** 获取规则引擎计算的创作阶段与完备度。 */
+  getGuideStatus: async (novelId: number): Promise<GuideStatus> => {
+    const response = await api.get(`/novel/${novelId}/guide-status`)
+    return response.data
+  },
+
+  advanceStage: async (novelId: number, stage: CreationStage): Promise<GuideStatus> => {
+    const response = await api.post(`/novel/${novelId}/advance-stage`, { stage })
+    return response.data
+  },
+
+  confirmField: async (
+    novelId: number,
+    payload: {
+      targetType: 'novel' | 'setting' | 'character'
+      field: string
+      targetId?: number
+      value?: unknown
+    }
+  ): Promise<GuideStatus> => {
+    const response = await api.post(`/novel/${novelId}/confirm-field`, payload)
+    return response.data.guideStatus || response.data
+  },
+
+  confirmInspiration: async (novelId: number, proposal: InspirationProposal): Promise<GuideStatus> => {
+    await api.post(`/novel/${novelId}/confirm-field`, {
+      targetType: 'novel',
+      field: 'name',
+      value: proposal.titleSuggestion
+    })
+    const response = await api.post(`/novel/${novelId}/confirm-field`, {
+      targetType: 'novel',
+      field: 'description',
+      value: proposal.logline
+    })
+    await api.put(`/novel/${novelId}/setting`, {
+      genreStyle: `${proposal.genre}；${proposal.style}；核心冲突：${proposal.coreConflict}`
+    })
+    return response.data.guideStatus || response.data
   }
 }

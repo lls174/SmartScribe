@@ -23,6 +23,9 @@ import { validateRequest } from '../middleware/validate'
 import { DEFAULT_AI_MODEL, DEFAULT_AI_PLATFORM } from '../constants/aiDefaults'
 import { SETTING_TYPE_MAP } from '../constants/aiSettingTypes'
 import { getActiveAiConfigSummary, getAiConfigStatus, getUserAiConfig, saveUserAiConfig } from '../services/aiCredentialService'
+import agentOrchestrator from '../services/agentOrchestrator'
+import type { AgentTask } from '../services/agentPrompts'
+import { findOwnedChapter, findOwnedNovel } from '../services/novelQueryService'
 
 const router = Router()
 
@@ -87,8 +90,8 @@ async function loadNovelMemory(req: { body: { novelId?: number | string }; userI
   if (!req.body.novelId || !req.userId) {
     return ''
   }
-  const memory = await novelMemoryService.getNovelMemory(req.body.novelId, req.userId)
-  return novelMemoryService.formatNovelMemory(memory)
+  const context = await novelMemoryService.getConfirmedContext(req.body.novelId, req.userId, 'writer')
+  return novelMemoryService.formatConfirmedContext(context)
 }
 
 async function buildNovelContext(req: { body: GenerateRequest | ContinueRequest | PolishRequest | OutlineRequest; userId?: number }): Promise<string> {
@@ -212,6 +215,17 @@ async function writeAiRequestLog({ req, action, platform, model, status, started
   }
 }
 
+/**
+ * 生产环境异步落日志，测试环境等待落库完成，兼顾响应速度与可重复的测试退出。
+ */
+async function settleRouteLogs(jobs: Array<Promise<void>>): Promise<void> {
+  if (process.env.NODE_ENV === 'test') {
+    await Promise.allSettled(jobs)
+    return
+  }
+  void Promise.allSettled(jobs)
+}
+
 const commonAiValidators = [
   body('platform').optional().trim(),
   body('model').optional().trim(),
@@ -280,8 +294,10 @@ router.post('/generate',
         res.write(`data: ${JSON.stringify({ done: true, plot: result.plot })}\n\n`)
         res.end()
       }
-      void recordGenerationHistory({ req, action: 'generate', prompt: payload.prompt, params: { platform, model, ...userPrompt }, result: result.content })
-      void writeAiRequestLog({ req, action: 'generate', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { chapterTitle: payload.chapterTitle, genre: payload.genre, style: payload.style, wordCount: payload.wordCount } })
+      await settleRouteLogs([
+        recordGenerationHistory({ req, action: 'generate', prompt: payload.prompt, params: { platform, model, ...userPrompt }, result: result.content }),
+        writeAiRequestLog({ req, action: 'generate', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { chapterTitle: payload.chapterTitle, genre: payload.genre, style: payload.style, wordCount: payload.wordCount } })
+      ])
     } catch (error) {
       console.error('生成章节失败:', error)
       await writeAiRequestLog({ req, action: 'generate', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error })
@@ -316,8 +332,10 @@ router.post('/continue',
         res.write(`data: ${JSON.stringify({ done: true, plot: result.plot })}\n\n`)
         res.end()
       }
-      void recordGenerationHistory({ req, action: 'continue', prompt: payload.prompt, params: { platform, model, lastPlot: payload.lastPlot, wordCount: payload.wordCount }, result: result.content })
-      void writeAiRequestLog({ req, action: 'continue', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.lastContent || ''}\n${payload.lastPlot || ''}`, result, metadata: { wordCount: payload.wordCount } })
+      await settleRouteLogs([
+        recordGenerationHistory({ req, action: 'continue', prompt: payload.prompt, params: { platform, model, lastPlot: payload.lastPlot, wordCount: payload.wordCount }, result: result.content }),
+        writeAiRequestLog({ req, action: 'continue', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.lastContent || ''}\n${payload.lastPlot || ''}`, result, metadata: { wordCount: payload.wordCount } })
+      ])
     } catch (error) {
       console.error('续写章节失败:', error)
       await writeAiRequestLog({ req, action: 'continue', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.lastContent || ''}\n${req.body.lastPlot || ''}`, error })
@@ -347,8 +365,10 @@ router.post('/polish',
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-      void recordGenerationHistory({ req, action: 'polish', prompt: payload.prompt, params: { platform, model, beforeContent: payload.beforeContent, beforePlot: payload.beforePlot, chapterTitle: payload.chapterTitle }, result: result.content })
-      void writeAiRequestLog({ req, action: 'polish', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.content || ''}`, result, metadata: { contentLength: payload.content.length } })
+      await settleRouteLogs([
+        recordGenerationHistory({ req, action: 'polish', prompt: payload.prompt, params: { platform, model, beforeContent: payload.beforeContent, beforePlot: payload.beforePlot, chapterTitle: payload.chapterTitle }, result: result.content }),
+        writeAiRequestLog({ req, action: 'polish', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.content || ''}`, result, metadata: { contentLength: payload.content.length } })
+      ])
     } catch (error) {
       console.error('润色内容失败:', error)
       await writeAiRequestLog({ req, action: 'polish', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.content || ''}`, error })
@@ -378,7 +398,9 @@ router.post('/setting',
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-      void writeAiRequestLog({ req, action: 'setting', platform, model, status: 'success', startedAt, promptText: fullPrompt, result, metadata: { type: payload.type } })
+      await settleRouteLogs([
+        writeAiRequestLog({ req, action: 'setting', platform, model, status: 'success', startedAt, promptText: fullPrompt, result, metadata: { type: payload.type } })
+      ])
     } catch (error) {
       console.error('生成设定失败:', error)
       await writeAiRequestLog({ req, action: 'setting', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
@@ -407,7 +429,9 @@ router.post('/outline',
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-      void writeAiRequestLog({ req, action: 'outline', platform, model, status: 'success', startedAt, promptText: userPrompt, result, metadata: { novelType: payload.novelType, length: payload.length } })
+      await settleRouteLogs([
+        writeAiRequestLog({ req, action: 'outline', platform, model, status: 'success', startedAt, promptText: userPrompt, result, metadata: { novelType: payload.novelType, length: payload.length } })
+      ])
     } catch (error) {
       console.error('生成大纲失败:', error)
       await writeAiRequestLog({ req, action: 'outline', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.novelType || ''}\n${req.body.corePlot || ''}`, error })
@@ -433,12 +457,231 @@ router.post('/creative',
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
         res.end()
       }
-      void recordGenerationHistory({ req, action: 'creative', prompt: payload.prompt, params: { platform, model, type: payload.type }, result: result.content })
-      void writeAiRequestLog({ req, action: 'creative', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { type: payload.type } })
+      await settleRouteLogs([
+        recordGenerationHistory({ req, action: 'creative', prompt: payload.prompt, params: { platform, model, type: payload.type }, result: result.content }),
+        writeAiRequestLog({ req, action: 'creative', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { type: payload.type } })
+      ])
     } catch (error) {
       console.error('生成创意失败:', error)
       await writeAiRequestLog({ req, action: 'creative', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
       sendAiRouteError(res, error, '生成创意失败')
+    }
+  }
+)
+
+/** 统一执行灵感智能体提案，并以结构化 result 事件结束 SSE。 */
+const handleProposal = (task: Extract<AgentTask, 'inspiration' | 'setting' | 'setting_all' | 'characters' | 'character_field' | 'outline'>) =>
+  async (req: import('express').Request, res: import('express').Response): Promise<void> => {
+    try {
+      const novel = await findOwnedNovel(req.body.novelId, req.userId!)
+      if (!novel) {
+        res.status(403).json({ message: '小说不存在或无权访问' })
+        return
+      }
+      const { platform, model, aiOptions } = await resolveAiExecutionConfig(
+        req.userId,
+        req.body.platform,
+        req.body.model,
+        req.body.enableDeepThinking
+      )
+      const { isConnectionClosed, streamCallbacks } = setupSSE(res, req)
+      const result = await agentOrchestrator.runStructured({
+        novelId: novel.id,
+        userId: req.userId!,
+        task,
+        role: 'inspiration',
+        input: { userHint: req.body.userHint, field: req.body.field },
+        platform,
+        model,
+        aiOptions,
+        streamCallbacks
+      })
+      if (!isConnectionClosed()) {
+        res.write(`data: ${JSON.stringify({ type: 'result', data: result.data, done: true })}\n\n`)
+        res.end()
+      }
+    } catch (error) {
+      sendAiRouteError(res, error, 'AI 提案暂不可用')
+    }
+  }
+
+const proposalValidators = [
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('userHint').optional().isString().trim(),
+  ...commonAiValidators,
+  validateRequest
+] as const
+
+router.post('/propose/inspiration', ...proposalValidators, handleProposal('inspiration'))
+router.post('/propose/setting',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('field').trim().notEmpty().withMessage('field 不能为空'),
+  body('userHint').optional().isString().trim(),
+  ...commonAiValidators,
+  validateRequest,
+  handleProposal('setting')
+)
+router.post('/propose/setting/all', ...proposalValidators, handleProposal('setting_all'))
+router.post('/propose/characters', ...proposalValidators, handleProposal('characters'))
+router.post('/propose/character-field',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('field').trim().notEmpty().withMessage('field 不能为空'),
+  body('userHint').optional().isString().trim(),
+  ...commonAiValidators,
+  validateRequest,
+  handleProposal('character_field')
+)
+router.post('/propose/outline', ...proposalValidators, handleProposal('outline'))
+
+router.post('/review/chapter',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('chapterId').optional().isInt({ min: 1 }).withMessage('chapterId 必须是正整数'),
+  body('draft').optional().isString(),
+  ...commonAiValidators,
+  validateRequest,
+  async (req, res) => {
+    try {
+      const novel = await findOwnedNovel(req.body.novelId, req.userId!)
+      if (!novel) return res.status(403).json({ message: '小说不存在或无权访问' })
+      const chapter = req.body.chapterId ? await findOwnedChapter(req.body.chapterId, req.userId!) : null
+      if (req.body.chapterId && (!chapter || chapter.novelId !== novel.id)) {
+        return res.status(403).json({ message: '章节不存在或无权访问' })
+      }
+      const draft = typeof req.body.draft === 'string' ? req.body.draft : chapter?.content
+      if (!draft?.trim()) return res.status(400).json({ message: '待审正文不能为空' })
+      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const result = await agentOrchestrator.runStructured({
+        novelId: novel.id,
+        userId: req.userId!,
+        task: 'review_chapter',
+        role: 'reviewer',
+        input: { draft },
+        platform,
+        model,
+        aiOptions
+      })
+      if (!result.degraded && chapter && result.data.verdict === 'pass') {
+        await chapter.update({ stale: false })
+      }
+      res.json(result.degraded
+        ? { available: false, message: '审查暂不可用，不影响正文保存', ...result.data }
+        : { available: true, ...result.data })
+    } catch (error) {
+      console.error('审查章节失败:', error)
+      res.status(200).json({ available: false, message: '审查暂不可用，不影响正文保存', issues: [] })
+    }
+  }
+)
+
+router.post('/write/revise',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('chapterId').optional().isInt({ min: 1 }).withMessage('chapterId 必须是正整数'),
+  body('draft').isString().trim().notEmpty().withMessage('draft 不能为空'),
+  body('selectedIssues').isArray({ min: 1 }).withMessage('selectedIssues 至少包含一项'),
+  ...commonAiValidators,
+  validateRequest,
+  async (req, res) => {
+    try {
+      const novel = await findOwnedNovel(req.body.novelId, req.userId!)
+      if (!novel) return res.status(403).json({ message: '小说不存在或无权访问' })
+      if (req.body.chapterId) {
+        const chapter = await findOwnedChapter(req.body.chapterId, req.userId!)
+        if (!chapter || chapter.novelId !== novel.id) return res.status(403).json({ message: '章节不存在或无权访问' })
+      }
+      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const { isConnectionClosed, streamCallbacks } = setupSSE(res, req)
+      await agentOrchestrator.runWriter({
+        novelId: novel.id,
+        userId: req.userId!,
+        task: 'revise_by_review',
+        role: 'writer',
+        input: { draft: req.body.draft, selectedIssues: req.body.selectedIssues },
+        platform,
+        model,
+        aiOptions,
+        streamCallbacks
+      })
+      if (!isConnectionClosed()) {
+        res.write(`data: ${JSON.stringify({ done: true, plotStale: true })}\n\n`)
+        res.end()
+      }
+    } catch (error) {
+      sendAiRouteError(res, error, '按审查意见改写失败')
+    }
+  }
+)
+
+router.post('/write/review-summary',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('chapterId').isInt({ min: 1 }).withMessage('chapterId 必须是正整数'),
+  body('draft').optional().isString(),
+  body('plot').optional().isString(),
+  ...commonAiValidators,
+  validateRequest,
+  async (req, res) => {
+    try {
+      const novel = await findOwnedNovel(req.body.novelId, req.userId!)
+      const chapter = await findOwnedChapter(req.body.chapterId, req.userId!)
+      if (!novel || !chapter || chapter.novelId !== novel.id) return res.status(403).json({ message: '小说或章节不存在，或无权访问' })
+      const draft = typeof req.body.draft === 'string' ? req.body.draft : chapter.content
+      const plot = typeof req.body.plot === 'string' ? req.body.plot : chapter.plot
+      if (!draft?.trim()) return res.status(400).json({ message: '章节正文不能为空' })
+      if (!plot?.trim()) return res.status(400).json({ message: '请先生成章节概括' })
+      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const result = await agentOrchestrator.runStructured({
+        novelId: novel.id,
+        userId: req.userId!,
+        task: 'review_summary',
+        role: 'reviewer',
+        input: { draft, plot },
+        platform,
+        model,
+        aiOptions
+      })
+      res.json(result.degraded
+        ? { available: false, message: '概括检查暂不可用', ...result.data }
+        : { available: true, ...result.data })
+    } catch (error) {
+      sendAiRouteError(res, error, '检查章节概括失败')
+    }
+  }
+)
+
+router.post('/write/summarize',
+  verifyToken,
+  body('novelId').isInt({ min: 1 }).withMessage('novelId 必须是正整数'),
+  body('chapterId').isInt({ min: 1 }).withMessage('chapterId 必须是正整数'),
+  body('draft').optional().isString(),
+  ...commonAiValidators,
+  validateRequest,
+  async (req, res) => {
+    try {
+      const novel = await findOwnedNovel(req.body.novelId, req.userId!)
+      const chapter = await findOwnedChapter(req.body.chapterId, req.userId!)
+      if (!novel || !chapter || chapter.novelId !== novel.id) return res.status(403).json({ message: '小说或章节不存在，或无权访问' })
+      const draft = typeof req.body.draft === 'string' ? req.body.draft : chapter.content
+      if (!draft.trim()) return res.status(400).json({ message: '章节正文不能为空' })
+      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const result = await agentOrchestrator.runWriter({
+        novelId: novel.id,
+        userId: req.userId!,
+        task: 'summarize',
+        role: 'writer',
+        input: { draft, chapterOutline: chapter.outline },
+        platform,
+        model,
+        aiOptions
+      })
+      await chapter.update({ plot: result.content, stalePlot: false })
+      res.json({ plot: result.content, chapterId: chapter.id, stalePlot: false })
+    } catch (error) {
+      sendAiRouteError(res, error, '生成章节概括失败')
     }
   }
 )

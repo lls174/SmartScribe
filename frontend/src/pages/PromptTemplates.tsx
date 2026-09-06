@@ -67,12 +67,7 @@ const PromptTemplates: React.FC = () => {
       })
 
       message.success('已根据模板创建小说')
-      navigate(`/novel/${novel.id}`, {
-        state: {
-          promptTemplateId: template.id,
-          openGenerateModal: true
-        }
-      })
+      navigate(`/novel/${novel.id}/guide`)
     } catch (error) {
       console.error('根据模板创建小说失败:', error)
       message.error('创建小说失败，请稍后重试')
@@ -87,7 +82,7 @@ const PromptTemplates: React.FC = () => {
         <div>
           <Title level={2}>Prompt 模板库</Title>
           <Paragraph type="secondary">
-            汇总当前流行网文/短剧元素。选择模板后会自动创建一部新小说，并在创作页填充生成参数。
+            汇总当前流行网文/短剧元素。选择模板后会创建新小说并写入基础设定；生成章节不再套用模板库，后续会单独重构。
           </Paragraph>
           <Text type="secondary">资料更新时间：{PROMPT_TEMPLATES_UPDATED_AT}</Text>
         </div>

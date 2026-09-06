@@ -29,6 +29,33 @@ describe('feedSseText', () => {
 
     expect(events).toEqual([{ status: 'thinking' }, { status: 'generating' }])
   })
+
+  it('解析结构化 result 事件且不与正文事件冲突', () => {
+    const lineBuffer = { value: '' }
+    const events: unknown[] = []
+
+    feedSseText(
+      lineBuffer,
+      'data: {"content":"预览"}\n\ndata: {"type":"result","data":{"proposals":[{"genre":"玄幻"}]}}\n\n',
+      (event) => events.push(event)
+    )
+
+    expect(events).toEqual([
+      { content: '预览' },
+      { type: 'result', data: { proposals: [{ genre: '玄幻' }] } }
+    ])
+  })
+
+  it('结构化 result 跨 chunk 时等待完整事件', () => {
+    const lineBuffer = { value: '' }
+    const events: unknown[] = []
+
+    feedSseText(lineBuffer, 'data: {"type":"result","data":{"outline":"第一', (event) => events.push(event))
+    expect(events).toHaveLength(0)
+    feedSseText(lineBuffer, '幕"}}\n\n', (event) => events.push(event))
+
+    expect(events).toEqual([{ type: 'result', data: { outline: '第一幕' } }])
+  })
 })
 
 describe('createRafChunkBatcher', () => {

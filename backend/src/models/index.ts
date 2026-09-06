@@ -6,7 +6,15 @@ import {
   Model,
   CreationOptional
 } from 'sequelize'
-import type { AiPlatform, AiRequestStatus, NovelSnapshot } from '../../../shared/types'
+import type {
+  AgentRole,
+  AiPlatform,
+  AiRequestStatus,
+  CreationStage,
+  NovelSnapshot,
+  ProposalUserAction,
+  ReviewStatus
+} from '../../../shared/types'
 import sequelize from '../config/db'
 
 export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
@@ -77,6 +85,9 @@ export class Novel extends Model<InferAttributes<Novel>, InferCreationAttributes
   declare userId: number
   declare name: string
   declare description: string | null
+  declare creationStage: CreationOptional<CreationStage>
+  declare stageProgress: CreationOptional<Record<string, unknown> | null>
+  declare completeness: CreationOptional<number>
   declare isDeleted: CreationOptional<boolean>
   declare deletedAt: Date | null
   declare createdAt: CreationOptional<Date>
@@ -88,6 +99,9 @@ Novel.init({
   userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
   name: { type: DataTypes.STRING, allowNull: false },
   description: { type: DataTypes.TEXT, allowNull: true },
+  creationStage: { type: DataTypes.ENUM('inspiration', 'worldview', 'characters', 'outline', 'writing'), allowNull: false, defaultValue: 'inspiration' },
+  stageProgress: { type: DataTypes.JSON, allowNull: true, defaultValue: null },
+  completeness: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   isDeleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   deletedAt: { type: DataTypes.DATE, allowNull: true },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
@@ -101,6 +115,8 @@ export class Chapter extends Model<InferAttributes<Chapter>, InferCreationAttrib
   declare content: string
   declare plot: string | null
   declare outline: string | null
+  declare stale: CreationOptional<boolean>
+  declare stalePlot: CreationOptional<boolean>
   declare order: CreationOptional<number>
   declare isDeleted: CreationOptional<boolean>
   declare deletedAt: Date | null
@@ -115,6 +131,8 @@ Chapter.init({
   content: { type: DataTypes.TEXT, allowNull: false },
   plot: { type: DataTypes.TEXT, allowNull: true },
   outline: { type: DataTypes.TEXT, allowNull: true },
+  stale: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  stalePlot: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   isDeleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   deletedAt: { type: DataTypes.DATE, allowNull: true },
@@ -270,6 +288,10 @@ export class CharacterCard extends Model<InferAttributes<CharacterCard>, InferCr
   declare notes: string | null
   declare priority: CreationOptional<number>
   declare isActive: CreationOptional<boolean>
+  declare reviewStatus: CreationOptional<ReviewStatus>
+  declare confirmedAt: Date | null
+  declare aiProposalHistory: CreationOptional<Array<Record<string, unknown>> | null>
+  declare stale: CreationOptional<boolean>
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 }
@@ -288,6 +310,10 @@ CharacterCard.init({
   notes: { type: DataTypes.TEXT, allowNull: true },
   priority: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 5 },
   isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  reviewStatus: { type: DataTypes.ENUM('empty', 'ai_proposed', 'confirmed'), allowNull: false, defaultValue: 'empty' },
+  confirmedAt: { type: DataTypes.DATE, allowNull: true },
+  aiProposalHistory: { type: DataTypes.JSON, allowNull: true, defaultValue: null },
+  stale: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, { sequelize, modelName: 'CharacterCard', tableName: 'character_cards' })
@@ -304,6 +330,9 @@ export class NovelSetting extends Model<InferAttributes<NovelSetting>, InferCrea
   declare styleGuide: string | null
   declare notes: string | null
   declare overallOutline: string | null
+  declare reviewStatus: CreationOptional<ReviewStatus>
+  declare confirmedAt: Date | null
+  declare stale: CreationOptional<boolean>
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 }
@@ -320,6 +349,9 @@ NovelSetting.init({
   styleGuide: { type: DataTypes.TEXT, allowNull: true },
   notes: { type: DataTypes.TEXT, allowNull: true },
   overallOutline: { type: DataTypes.TEXT, allowNull: true },
+  reviewStatus: { type: DataTypes.ENUM('empty', 'ai_proposed', 'confirmed'), allowNull: false, defaultValue: 'empty' },
+  confirmedAt: { type: DataTypes.DATE, allowNull: true },
+  stale: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, { sequelize, modelName: 'NovelSetting', tableName: 'novel_settings' })
@@ -362,6 +394,45 @@ Novel.hasMany(CharacterCard, { foreignKey: 'novelId' })
 CharacterCard.belongsTo(Novel, { foreignKey: 'novelId' })
 Novel.hasOne(NovelSetting, { foreignKey: 'novelId' })
 NovelSetting.belongsTo(Novel, { foreignKey: 'novelId' })
+
+export class AiProposalLog extends Model<InferAttributes<AiProposalLog>, InferCreationAttributes<AiProposalLog>> {
+  declare id: CreationOptional<number>
+  declare novelId: number
+  declare userId: number
+  declare agent: AgentRole
+  declare proposalType: string
+  declare inputContext: Record<string, unknown>
+  declare output: unknown
+  declare userAction: CreationOptional<ProposalUserAction>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+}
+
+AiProposalLog.init({
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  novelId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'novels', key: 'id' } },
+  userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
+  agent: { type: DataTypes.ENUM('inspiration', 'writer', 'reviewer'), allowNull: false },
+  proposalType: { type: DataTypes.STRING, allowNull: false },
+  inputContext: { type: DataTypes.JSON, allowNull: false },
+  output: { type: DataTypes.JSON, allowNull: false },
+  userAction: { type: DataTypes.ENUM('pending', 'adopted', 'rejected', 'edited'), allowNull: false, defaultValue: 'pending' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  sequelize,
+  modelName: 'AiProposalLog',
+  tableName: 'ai_proposal_logs',
+  indexes: [
+    { fields: ['novelId', 'createdAt'] },
+    { fields: ['userId', 'agent', 'proposalType'] }
+  ]
+})
+
+User.hasMany(AiProposalLog, { foreignKey: 'userId' })
+AiProposalLog.belongsTo(User, { foreignKey: 'userId' })
+Novel.hasMany(AiProposalLog, { foreignKey: 'novelId' })
+AiProposalLog.belongsTo(Novel, { foreignKey: 'novelId' })
 
 const syncDatabase = async (): Promise<void> => {
   try {

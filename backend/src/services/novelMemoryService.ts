@@ -1,3 +1,4 @@
+import type { AgentRole, ConfirmedContext } from '../../../shared/types'
 import { CharacterCard, Chapter, Novel, NovelSetting } from '../models'
 
 interface NovelMemory {
@@ -8,6 +9,81 @@ interface NovelMemory {
 }
 
 class NovelMemoryService {
+  /** 按智能体角色读取已确认记忆，严格排除未采纳提案。 */
+  async getConfirmedContext(novelId: number | string, userId: number, agentRole: AgentRole): Promise<ConfirmedContext | null> {
+    const parsedNovelId = parseInt(String(novelId), 10)
+    if (!Number.isFinite(parsedNovelId)) return null
+
+    const novel = await Novel.findOne({ where: { id: parsedNovelId, userId, isDeleted: false } })
+    if (!novel) return null
+
+    const characterWhere: { novelId: number; reviewStatus: 'confirmed'; isActive?: boolean } = {
+      novelId: novel.id,
+      reviewStatus: 'confirmed'
+    }
+    if (agentRole === 'writer') characterWhere.isActive = true
+
+    const [characters, setting, chapters] = await Promise.all([
+      CharacterCard.findAll({ where: characterWhere, order: [['priority', 'DESC'], ['updatedAt', 'DESC']], limit: 20 }),
+      NovelSetting.findOne({ where: { novelId: novel.id, reviewStatus: 'confirmed' } }),
+      Chapter.findAll({
+        where: { novelId: novel.id, isDeleted: false },
+        order: [['order', 'ASC']],
+        attributes: ['id', 'title', 'order', 'outline', 'plot', 'stalePlot']
+      })
+    ])
+
+    const settingJson = setting?.toJSON() as Record<string, unknown> | undefined
+    const settingFields = ['worldview', 'genreStyle', 'powerSystem', 'timeline', 'plotRules', 'taboos', 'styleGuide', 'notes'] as const
+    const settings = Object.fromEntries(settingFields.flatMap((field) => {
+      const value = settingJson?.[field]
+      return typeof value === 'string' && value.trim() ? [[field, value]] : []
+    }))
+
+    return {
+      novel: {
+        id: novel.id,
+        name: novel.name,
+        description: novel.description,
+        creationStage: novel.creationStage
+      },
+      settings,
+      characters: characters.map((card) => ({
+        id: card.id,
+        name: card.name,
+        role: card.role,
+        identity: card.identity,
+        personality: card.personality,
+        appearance: card.appearance,
+        relationship: card.relationship,
+        secret: card.secret,
+        arc: card.arc,
+        priority: card.priority,
+        isActive: card.isActive
+      })),
+      outline: setting?.overallOutline || undefined,
+      chapterOutlines: chapters
+        .filter((chapter) => Boolean(chapter.outline?.trim()))
+        .map((chapter) => ({ id: chapter.id, title: chapter.title, order: chapter.order, outline: chapter.outline })),
+      chapterSummaries: chapters
+        .filter((chapter) => Boolean(chapter.plot?.trim()))
+        .map((chapter) => ({ id: chapter.id, title: chapter.title, order: chapter.order, plot: chapter.plot, stalePlot: chapter.stalePlot }))
+    }
+  }
+
+  /** 将 confirmed 上下文格式化为 Prompt 可读文本。 */
+  formatConfirmedContext(context: ConfirmedContext | null): string {
+    if (!context) return ''
+    const sections = [
+      `【小说】${context.novel.name}${context.novel.description ? `\n${context.novel.description}` : ''}`,
+      Object.keys(context.settings).length ? `【已确认设定】\n${JSON.stringify(context.settings, null, 2)}` : '',
+      context.characters.length ? `【已确认人物】\n${JSON.stringify(context.characters, null, 2)}` : '',
+      context.outline ? `【整体大纲】\n${context.outline}` : '',
+      context.chapterSummaries.length ? `【章节概括链】\n${JSON.stringify(context.chapterSummaries, null, 2)}` : ''
+    ]
+    return sections.filter(Boolean).join('\n\n')
+  }
+
   async getNovelMemory(novelId: number | string, userId: number): Promise<NovelMemory | null> {
     const parsedNovelId = parseInt(String(novelId), 10)
     if (!Number.isFinite(parsedNovelId)) {

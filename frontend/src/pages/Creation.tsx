@@ -14,6 +14,7 @@ interface Novel {
   id: number
   name: string
   description: string
+  creationStage?: 'inspiration' | 'worldview' | 'characters' | 'outline' | 'writing'
   createdAt: string
 }
 
@@ -51,7 +52,7 @@ const Creation: React.FC = () => {
       setNovels([newNovel, ...novels])
       createModal.hide()
       form.resetFields()
-      navigate(`/novel/${newNovel.id}`)
+      navigate(`/novel/${newNovel.id}/guide`)
     } catch (error) {
       message.error(getApiErrorMessage(error, '创建小说失败'))
     }
@@ -122,8 +123,13 @@ const Creation: React.FC = () => {
                 </div>
               </div>
               <div className="novel-actions">
-                <Link to={`/novel/${novel.id}`}>
-                  <Button type="primary" className="action-button">进入创作</Button>
+                <Link to={novel.creationStage === 'writing' ? `/novel/${novel.id}` : `/novel/${novel.id}/guide`}>
+                  <Button type="primary" className="action-button">
+                    {novel.creationStage === 'writing' ? '继续写作' : '继续向导'}
+                  </Button>
+                </Link>
+                <Link to={`/novel/${novel.id}/guide`}>
+                  <Button className="action-button">创作向导</Button>
                 </Link>
                 <Button
                   icon={<EditOutlined />}

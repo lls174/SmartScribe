@@ -4,6 +4,10 @@ export type AiPlatform = 'aliyun' | 'zhipu' | 'deepseek' | 'openai' | 'custom'
 export type AiRequestStatus = 'success' | 'failed'
 export type SettingType = 'character' | 'world' | 'item'
 export type AiStreamPhase = 'waiting' | 'thinking' | 'generating'
+export type CreationStage = 'inspiration' | 'worldview' | 'characters' | 'outline' | 'writing'
+export type ReviewStatus = 'empty' | 'ai_proposed' | 'confirmed'
+export type AgentRole = 'inspiration' | 'writer' | 'reviewer'
+export type ProposalUserAction = 'pending' | 'adopted' | 'rejected' | 'edited'
 
 export interface MessageResponse {
   message: string
@@ -32,6 +36,9 @@ export interface Novel {
   userId: number
   name: string
   description?: string | null
+  creationStage: CreationStage
+  stageProgress?: Record<string, unknown> | null
+  completeness: number
   isDeleted?: boolean
   deletedAt?: string | null
   createdAt: string
@@ -45,6 +52,8 @@ export interface Chapter {
   content: string
   plot?: string | null
   outline?: string | null
+  stale: boolean
+  stalePlot: boolean
   order: number
   isDeleted?: boolean
   deletedAt?: string | null
@@ -66,6 +75,10 @@ export interface CharacterCard {
   notes?: string | null
   priority: number
   isActive: boolean
+  reviewStatus: ReviewStatus
+  confirmedAt?: string | null
+  aiProposalHistory?: AiProposalHistoryItem[] | null
+  stale: boolean
   createdAt: string
   updatedAt: string
 }
@@ -82,6 +95,9 @@ export interface NovelSetting {
   styleGuide?: string | null
   notes?: string | null
   overallOutline?: string | null
+  reviewStatus: ReviewStatus
+  confirmedAt?: string | null
+  stale: boolean
   createdAt: string
   updatedAt: string
 }
@@ -317,7 +333,13 @@ export interface SseDoneEvent {
   plot?: string
 }
 
-export type SseEvent = SseContentChunk | SseStatusEvent | SseDoneEvent
+export interface SseStructuredResultEvent<T = unknown> {
+  type: 'result'
+  data: T
+  done?: true
+}
+
+export type SseEvent = SseContentChunk | SseStatusEvent | SseDoneEvent | SseStructuredResultEvent
 
 export interface AiUsage {
   promptTokens: number
@@ -334,3 +356,98 @@ export interface AiContentResult {
 
 export type CharacterCardPayload = Partial<Omit<CharacterCard, 'id' | 'novelId' | 'createdAt' | 'updatedAt'>>
 export type NovelSettingPayload = Partial<Omit<NovelSetting, 'id' | 'novelId' | 'createdAt' | 'updatedAt'>>
+
+export interface AiProposalHistoryItem {
+  version: number
+  content: unknown
+  createdAt: string
+  prompt?: string
+}
+
+export interface ConfirmedContext {
+  novel: Pick<Novel, 'id' | 'name' | 'description' | 'creationStage'>
+  settings: Partial<Pick<NovelSetting, 'worldview' | 'genreStyle' | 'powerSystem' | 'timeline' | 'plotRules' | 'taboos' | 'styleGuide' | 'notes'>>
+  characters: Array<Pick<CharacterCard, 'id' | 'name' | 'role' | 'identity' | 'personality' | 'appearance' | 'relationship' | 'secret' | 'arc' | 'priority' | 'isActive'>>
+  outline?: string
+  chapterOutlines: Array<Pick<Chapter, 'id' | 'title' | 'order' | 'outline'>>
+  chapterSummaries: Array<Pick<Chapter, 'id' | 'title' | 'order' | 'plot'> & { stalePlot: boolean }>
+}
+
+export interface GuideMissingItem {
+  type: 'inspiration' | 'setting' | 'character' | 'outline'
+  field?: string
+  severity: 'info' | 'warning'
+  message: string
+}
+
+export interface GuideStatus {
+  stage: CreationStage
+  completeness: number
+  missingItems: GuideMissingItem[]
+  nextAction: {
+    label: string
+    step: CreationStage
+    agent: AgentRole
+    aiAction: string
+  }
+  warnings: string[]
+}
+
+export interface ReviewIssue {
+  id: string
+  severity: 'minor' | 'major' | 'blocker'
+  category: 'plot' | 'character' | 'world' | 'taboo' | 'style' | 'continuity'
+  location: string
+  evidence: string
+  expected: string
+  suggestion: string
+}
+
+export interface ChapterReviewResult {
+  verdict: 'pass' | 'revise' | 'block'
+  summary: string
+  issues: ReviewIssue[]
+}
+
+export interface InspirationProposal {
+  options: Array<{
+    title: string
+    genre: string
+    premise: string
+    coreConflict: string
+    sellingPoints: string[]
+    reasoning?: string
+  }>
+}
+
+export interface SettingProposal {
+  field: string
+  content: string
+  alternatives?: string[]
+  reasoning?: string
+}
+
+export interface CharactersProposal {
+  characters: Array<Omit<CharacterCardPayload, 'reviewStatus' | 'confirmedAt' | 'aiProposalHistory' | 'stale'> & {
+    name: string
+    reasoning?: string
+  }>
+}
+
+export interface OutlineProposal {
+  overallOutline: string
+  chapters?: Array<{ title: string; outline: string; order: number }>
+}
+
+export interface AiProposalLog {
+  id: number
+  novelId: number
+  userId: number
+  agent: AgentRole
+  proposalType: string
+  inputContext: ConfirmedContext | Record<string, unknown>
+  output: unknown
+  userAction: ProposalUserAction
+  createdAt: string
+  updatedAt: string
+}

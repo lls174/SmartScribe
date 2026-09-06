@@ -40,7 +40,7 @@ const Profile: React.FC = () => {
       return
     }
     fetchUserInfo()
-  }, [isAuthenticated, isLoading, navigate])
+  }, [isAuthenticated, isLoading, navigate]) // eslint-disable-line react-hooks/exhaustive-deps -- 表单实例稳定，仅认证状态变化时刷新资料
 
   const fetchUserInfo = async () => {
     try {

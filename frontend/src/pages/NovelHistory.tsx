@@ -51,7 +51,7 @@ const NovelHistory: React.FC = () => {
 
   useEffect(() => {
     load()
-  }, [novelId, page, limit])
+  }, [novelId, page, limit]) // eslint-disable-line react-hooks/exhaustive-deps -- 仅小说与分页变化时重新请求
 
   const columns = useMemo(() => ([
     {

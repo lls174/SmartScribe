@@ -1,6 +1,7 @@
 import sequelize from '../src/config/db'
 import {
   AiCredential,
+  AiProposalLog,
   AiRequestLog,
   Chapter,
   CharacterCard,
@@ -31,6 +32,7 @@ const initDatabase = async (): Promise<void> => {
     void CharacterCard
     void NovelSetting
     void AiCredential
+    void AiProposalLog
 
     await sequelize.sync({ force: false, alter: false })
     console.log('数据库表同步完成')

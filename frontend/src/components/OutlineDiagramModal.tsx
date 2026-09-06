@@ -18,27 +18,40 @@ import { loadMermaid } from '@/utils/loadMermaid'
 
 const { Paragraph } = Typography
 
+/** 读取当前全屏元素，兼容 webkit 前缀实现。 */
 const getFullscreenElement = () =>
   document.fullscreenElement
   || (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement
   || null
 
+/** 请求指定元素进入全屏；文档未激活时浏览器会拒绝，需吞掉异常。 */
 const requestElementFullscreen = async (element: HTMLElement) => {
-  if (element.requestFullscreen) {
-    await element.requestFullscreen()
-    return
+  try {
+    if (element.requestFullscreen) {
+      await element.requestFullscreen()
+      return
+    }
+    const webkitElement = element as HTMLElement & { webkitRequestFullscreen?: () => void }
+    webkitElement.webkitRequestFullscreen?.()
+  } catch (error) {
+    console.warn('进入全屏被浏览器拒绝:', error)
+    throw error
   }
-  const webkitElement = element as HTMLElement & { webkitRequestFullscreen?: () => void }
-  webkitElement.webkitRequestFullscreen?.()
 }
 
+/** 仅在确实处于全屏时退出，避免 Document not active 未捕获异常。 */
 const exitElementFullscreen = async () => {
-  if (document.exitFullscreen) {
-    await document.exitFullscreen()
-    return
+  if (!getFullscreenElement()) return
+  try {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen()
+      return
+    }
+    const webkitDocument = document as Document & { webkitExitFullscreen?: () => void }
+    webkitDocument.webkitExitFullscreen?.()
+  } catch (error) {
+    console.warn('退出全屏被浏览器拒绝:', error)
   }
-  const webkitDocument = document as Document & { webkitExitFullscreen?: () => void }
-  webkitDocument.webkitExitFullscreen?.()
 }
 
 interface OutlineDiagramModalProps {
@@ -279,7 +292,10 @@ const OutlineDiagramModal: React.FC<OutlineDiagramModalProps> = ({
   }, [fitDiagramToViewport])
 
   useEffect(() => {
-    if (!open && getFullscreenElement() === fullscreenRootRef.current) {
+    if (open) return
+    const root = fullscreenRootRef.current
+    // 未挂载时 ref 与 fullscreenElement 都是 null，不能用相等判断，否则会误调 exitFullscreen
+    if (root && getFullscreenElement() === root) {
       void exitElementFullscreen()
     }
   }, [open])

@@ -1,3 +1,4 @@
+// @deprecated 请通过 npm run db:migrate:rbac-usage 运行 TypeScript 迁移脚本。
 const sequelize = require('../config/db')
 const User = require('../models/User')
 const AiRequestLog = require('../models/AiRequestLog')

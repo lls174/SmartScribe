@@ -12,8 +12,8 @@
 }
 
 .creation-title {
-  font-size: 2rem !important;
-  margin: 0 !important;
+  font-size: 2rem;
+  margin: 0;
 }
 
 .creation-button {
@@ -25,20 +25,20 @@
 }
 
 .novel-item {
-  border-bottom: none !important;
-  padding: 0 0 1rem 0 !important;
+  border-bottom: none;
+  padding: 0 0 1rem 0;
 }
 
 .novel-card {
   width: 100%;
-  background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
-  border: 1px solid var(--header-border) !important;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+  border: 1px solid var(--header-border);
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .novel-card:hover {
-  border-color: var(--primary-50) !important;
+  border-color: var(--primary-50);
 }
 
 .novel-info {
@@ -46,14 +46,14 @@
 }
 
 .novel-name {
-  color: var(--primary-color) !important;
-  font-size: 1.2rem !important;
-  margin-bottom: 0.5rem !important;
+  color: var(--primary-color);
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .novel-description {
-  color: var(--text-secondary) !important;
-  margin-bottom: 0.5rem !important;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
 }
 
 .novel-meta {
@@ -63,7 +63,7 @@
 }
 
 .novel-date {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
@@ -79,87 +79,87 @@
 
 /* ===== 新建/编辑小说弹窗 ===== */
 .creation-modal .ant-modal-content {
-  background: color-mix(in srgb, var(--surface-color) 92%, transparent) !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
 }
 
 .creation-modal .ant-modal-header {
-  background: transparent !important;
-  border-bottom: 1px solid var(--border-20) !important;
-  padding: 16px 20px !important;
+  background: transparent;
+  border-bottom: 1px solid var(--border-20);
+  padding: 16px 20px;
 }
 
 .creation-modal .ant-modal-title {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
   font-weight: 600;
 }
 
 .creation-modal .ant-modal-close {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .creation-modal .ant-modal-close:hover {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
 }
 
 .creation-modal .ant-modal-body {
-  padding: 20px !important;
+  padding: 20px;
 }
 
 .creation-modal .ant-form-item-label > label {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .creation-modal .ant-form-item-required::before {
-  color: var(--error-color) !important;
+  color: var(--error-color);
 }
 
 /* 单行与多行输入统一外观 */
 .creation-modal input.ant-input,
 .creation-modal textarea.ant-input {
   width: 100%;
-  background: var(--input-bg) !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 8px !important;
-  color: var(--text-primary) !important;
-  -webkit-text-fill-color: var(--text-primary) !important;
-  font-size: 15px !important;
+  background: var(--input-bg);
+  border: 1px solid var(--header-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
+  font-size: 15px;
   line-height: 1.5;
-  box-shadow: none !important;
+  box-shadow: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .creation-modal input.ant-input {
   min-height: 48px;
-  height: 48px !important;
-  padding: 10px 14px !important;
+  height: 48px;
+  padding: 10px 14px;
 }
 
 .creation-modal textarea.ant-input {
   min-height: 120px;
-  padding: 12px 14px !important;
+  padding: 12px 14px;
   resize: vertical;
 }
 
 .creation-modal input.ant-input:hover,
 .creation-modal textarea.ant-input:hover {
-  border-color: var(--primary-50) !important;
-  box-shadow: none !important;
+  border-color: var(--primary-50);
+  box-shadow: none;
 }
 
 .creation-modal input.ant-input:focus,
 .creation-modal textarea.ant-input:focus {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 0 0 2px var(--primary-20) !important;
-  outline: none !important;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-20);
+  outline: none;
 }
 
 .creation-modal input.ant-input::placeholder,
 .creation-modal textarea.ant-input::placeholder {
-  color: color-mix(in srgb, var(--text-secondary) 80%, transparent) !important;
-  -webkit-text-fill-color: color-mix(in srgb, var(--text-secondary) 80%, transparent) !important;
+  color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
+  -webkit-text-fill-color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
   opacity: 1;
 }
 
@@ -169,29 +169,29 @@
 }
 
 .ant-popover-inner {
-  background: color-mix(in srgb, var(--surface-color) 95%, transparent) !important;
-  border: 1px solid var(--header-border) !important;
+  background: color-mix(in srgb, var(--surface-color) 95%, transparent);
+  border: 1px solid var(--header-border);
 }
 
 .ant-popover-message-title {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .ant-popover-buttons button {
-  background: var(--btn-bg) !important;
-  border: 1px solid var(--header-border) !important;
-  color: var(--text-primary) !important;
+  background: var(--btn-bg);
+  border: 1px solid var(--header-border);
+  color: var(--text-primary);
 }
 
 .ant-popover-buttons button:hover {
-  border-color: var(--primary-50) !important;
-  color: var(--primary-color) !important;
+  border-color: var(--primary-50);
+  color: var(--primary-color);
 }
 
 .ant-popover-buttons .ant-btn-primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
-  border: none !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border: none;
+  color: #ffffff;
 }
 
 @media (max-width: 768px) {
@@ -206,11 +206,11 @@
   }
 
   .creation-title {
-    font-size: 1.5rem !important;
+    font-size: 1.5rem;
   }
 
   .novel-card .ant-card-body {
-    padding: 14px !important;
+    padding: 14px;
   }
 
   .novel-actions {

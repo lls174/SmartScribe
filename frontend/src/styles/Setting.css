@@ -9,13 +9,13 @@
 }
 
 .setting-title {
-  font-size: 1.5rem !important;
-  font-weight: 700 !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
   letter-spacing: 0.06em;
-  color: var(--primary-color) !important;
-  background: none !important;
-  -webkit-text-fill-color: unset !important;
+  color: var(--primary-color);
+  background: none;
+  -webkit-text-fill-color: unset;
   text-transform: none;
 }
 
@@ -24,25 +24,25 @@
 }
 
 .setting-description {
-  color: var(--text-secondary) !important;
-  margin-bottom: 0 !important;
+  color: var(--text-secondary);
+  margin-bottom: 0;
   font-size: 0.9rem;
 }
 
 .setting-alert {
-  background: var(--primary-10) !important;
-  border: 1px solid var(--header-border) !important;
+  background: var(--primary-10);
+  border: 1px solid var(--header-border);
   border-radius: 12px;
   margin-bottom: 1.5rem;
 }
 
 .setting-alert .ant-alert-message {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
   font-weight: 600;
 }
 
 .setting-alert .ant-alert-description {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .setting-section {
@@ -209,9 +209,9 @@
 }
 
 .setting-card {
-  background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
   margin-bottom: 1rem;
 }
 
@@ -220,7 +220,7 @@
 }
 
 .setting-card--form .ant-card-body {
-  padding: 20px !important;
+  padding: 20px;
 }
 
 .setting-form-label {
@@ -240,20 +240,20 @@
 }
 
 .setting-model-desc {
-  margin-bottom: 0 !important;
-  color: var(--text-secondary) !important;
+  margin-bottom: 0;
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
 .setting-submit-item {
-  margin-bottom: 0 !important;
+  margin-bottom: 0;
   margin-top: 8px;
 }
 
 .setting-submit-btn {
   font-weight: 600;
   letter-spacing: 0.05em;
-  height: 44px !important;
+  height: 44px;
 }
 
 .setting-status-grid {
@@ -314,24 +314,24 @@
 }
 
 .setting-collapse {
-  background: transparent !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 12px !important;
+  background: transparent;
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
   overflow: hidden;
 }
 
 .setting-collapse .ant-collapse-item {
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 .setting-collapse .ant-collapse-header {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .setting-collapse .ant-collapse-content {
-  background: color-mix(in srgb, var(--surface-color) 40%, transparent) !important;
-  border-top: 1px solid var(--border-20) !important;
+  background: color-mix(in srgb, var(--surface-color) 40%, transparent);
+  border-top: 1px solid var(--border-20);
 }
 
 /* 统一表单控件尺寸 */
@@ -344,13 +344,13 @@
 }
 
 .setting-form .setting-select .ant-select-selector {
-  min-height: 48px !important;
-  height: auto !important;
-  padding: 8px 12px !important;
+  min-height: 48px;
+  height: auto;
+  padding: 8px 12px;
   align-items: center;
-  border-radius: 8px !important;
-  background: var(--input-bg) !important;
-  border: 1px solid var(--header-border) !important;
+  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--header-border);
   font-size: 15px;
 }
 
@@ -359,9 +359,9 @@
   padding: 10px 14px;
   font-size: 15px;
   border-radius: 8px;
-  background: var(--input-bg) !important;
-  border: 1px solid var(--header-border) !important;
-  color: var(--text-primary) !important;
+  background: var(--input-bg);
+  border: 1px solid var(--header-border);
+  color: var(--text-primary);
 }
 
 .setting-form .setting-input-password.ant-input-affix-wrapper {
@@ -369,17 +369,17 @@
   min-height: 48px;
   padding: 0 14px;
   border-radius: 8px;
-  background: var(--input-bg) !important;
-  border: 1px solid var(--header-border) !important;
+  background: var(--input-bg);
+  border: 1px solid var(--header-border);
 }
 
 .setting-form .setting-input-password .ant-input {
   min-height: 46px;
   padding: 10px 0;
   font-size: 15px;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .setting-form .setting-input-password .ant-input-password-icon {
@@ -389,27 +389,27 @@
 .setting-form .ant-input-affix-wrapper:hover,
 .setting-form .setting-select:hover .ant-select-selector,
 .setting-form .setting-input.ant-input:hover {
-  border-color: var(--primary-50) !important;
+  border-color: var(--primary-50);
 }
 
 .setting-form .ant-input-affix-wrapper-focused,
 .setting-form .setting-select.ant-select-focused .ant-select-selector,
 .setting-form .setting-input.ant-input:focus {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 0 12px var(--primary-20) !important;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 12px var(--primary-20);
 }
 
 .setting-form .setting-input.ant-input::placeholder,
 .setting-form .setting-input-password .ant-input::placeholder {
-  color: color-mix(in srgb, var(--text-secondary) 70%, transparent) !important;
+  color: color-mix(in srgb, var(--text-secondary) 70%, transparent);
 }
 
 .setting-form .setting-api-key-display.ant-input-affix-wrapper {
   min-height: 48px;
   padding: 0 14px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--primary-color) 6%, var(--input-bg)) !important;
-  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, var(--header-border)) !important;
+  background: color-mix(in srgb, var(--primary-color) 6%, var(--input-bg));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, var(--header-border));
   cursor: default;
 }
 
@@ -419,10 +419,10 @@
   font-size: 15px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0.02em;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: var(--text-primary) !important;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-primary);
   cursor: default;
 }
 
@@ -513,7 +513,7 @@
   }
 
   .setting-card--form .ant-card-body {
-    padding: 16px !important;
+    padding: 16px;
   }
 }
 

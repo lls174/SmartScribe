@@ -1,4 +1,6 @@
 export interface AppSseEvent {
+  type?: 'result'
+  data?: unknown
   content?: string
   plot?: string
   done?: boolean

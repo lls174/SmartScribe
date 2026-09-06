@@ -60,7 +60,7 @@ const Admin: React.FC = () => {
 
   useEffect(() => {
     refreshAll()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- 仅首屏加载；分页刷新由各表格事件独立触发
 
   const confirmBanUser = (user: AdminUser) => {
     let reason = ''

@@ -211,22 +211,22 @@
     display: flex;
   }
 
-  .sci-fi-header {
-    display: none !important;
+  #root .sci-fi-header {
+    display: none;
   }
 
-  .app-footer {
-    display: none !important;
+  #root .app-footer {
+    display: none;
   }
 
-  .app-main-content {
-    padding-top: 0 !important;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  #root .app-main-content {
+    padding-top: 0;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
   /* 小说编辑页：为底部 AI 操作条留出空间 */
-  .app-main-content--novel-editor {
-    padding-bottom: calc(128px + env(safe-area-inset-bottom)) !important;
+  #root .app-main-content--novel-editor {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom));
   }
 
   /* 流式跟随时，最新内容停在底部固定栏上方 */
@@ -236,26 +236,26 @@
 }
 
 /* ===== 创作页 FAB ===== */
-.creation-fab {
+#root .creation-fab {
   display: none;
   position: fixed;
   bottom: calc(76px + env(safe-area-inset-bottom));
   right: 20px;
-  width: 56px !important;
-  height: 56px !important;
-  min-height: 56px !important;
-  border-radius: 50% !important;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  border-radius: 50%;
   z-index: 99;
   box-shadow: 0 4px 20px var(--primary-20);
 }
 
 @media (max-width: 768px) {
-  .creation-header .creation-button--desktop {
-    display: none !important;
+  #root .creation-header .creation-button--desktop {
+    display: none;
   }
 
-  .creation-fab {
-    display: inline-flex !important;
+  #root .creation-fab {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   }
@@ -304,7 +304,7 @@
   }
 
   /* 页面内大标题由顶部栏承接 */
-  .page-title--hide-mobile {
-    display: none !important;
+  #root .page-title--hide-mobile {
+    display: none;
   }
 }

@@ -1,31 +1,58 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Button, Typography, Space, Row, Col, Form, Input, Modal, message, Select, Dropdown, Card, Tabs, List, Tag, Switch, InputNumber, Collapse } from 'antd'
+import { Alert, Button, Typography, Space, Row, Col, Form, Input, Modal, message, Select, Dropdown, Tabs, List, Tag, Switch, InputNumber, Collapse } from 'antd'
 import { DragOutlined, DownloadOutlined, HistoryOutlined, BranchesOutlined, MoreOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
 const { Option } = Select
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Editor, EditorState, RichUtils, convertFromRaw } from 'draft-js'
 import 'draft-js/dist/Draft.css'
 import { aiService } from '@services/aiService'
 import type { NovelContext } from '@services/aiService'
 import { novelService } from '@services/novelService'
-import { PROMPT_TEMPLATES, PROMPT_TEMPLATES_UPDATED_AT, type PromptTemplate } from '@/data/promptTemplates'
 import { useAuth } from '@hooks/useAuth'
 import { useMediaQuery } from '@hooks/useMediaQuery'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import Loading from '@components/Loading'
 import NovelOutlinePanel from '@components/NovelOutlinePanel'
+import ReviewPanel from '@components/ReviewPanel'
 import type { CharacterCard, Chapter, NovelSetting, AiStreamPhase } from '@app-types/index'
+import type { ChapterReview, GuideStatus, PlotReview, ReviewIssue } from '@/types/collaboration'
 import { getAiStreamPhaseLabel } from '@utils/aiStream'
 import '@styles/Novel.css'
 
 const { Title } = Typography
 
+const BUILT_IN_GENRES = ['玄幻', '仙侠', '都市', '历史', '科幻', '言情']
+const BUILT_IN_STYLES = ['正常', '浪漫', '英雄主义', '神秘', '幽默', '悲剧']
+
+/** 把已确认设定和人物卡整理成生成参数，避免写作台重复填写。 */
+const buildDefaultsFromMemory = (setting: NovelSetting | null, cards: CharacterCard[]) => {
+  const genreStyle = setting?.genreStyle?.trim() || ''
+  const styleGuide = setting?.styleGuide?.trim() || ''
+  const matchedGenre = BUILT_IN_GENRES.find((item) => genreStyle.includes(item))
+  const matchedStyle = BUILT_IN_STYLES.find((item) => styleGuide.includes(item) || genreStyle.includes(item))
+  const characters = cards
+    .filter((card) => card.isActive !== false)
+    .map((card) => {
+      const role = card.role ? `（${card.role}）` : ''
+      const personality = card.personality ? `：${card.personality}` : ''
+      return `${card.name}${role}${personality}`
+    })
+    .join('\n')
+
+  return {
+    genre: matchedGenre || (genreStyle ? '自定义' : '玄幻'),
+    customGenre: matchedGenre ? '' : genreStyle,
+    style: matchedStyle || (styleGuide ? '自定义' : '正常'),
+    customStyle: matchedStyle ? '' : styleGuide,
+    characters
+  }
+}
+
 const Novel: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const { config } = useAIConfig()
   const [editorState, setEditorState] = useState(() => EditorState.createEmpty())
@@ -43,7 +70,6 @@ const Novel: React.FC = () => {
   const [characters, setCharacters] = useState('')
   const [other, setOther] = useState('')
   const [wordCount, setWordCount] = useState('2000')
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>()
   const [continueWordCount, setContinueWordCount] = useState('2000')
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [pageLoading, setPageLoading] = useState(true)
@@ -58,10 +84,18 @@ const Novel: React.FC = () => {
   const [characterModalVisible, setCharacterModalVisible] = useState(false)
   const [editingCharacter, setEditingCharacter] = useState<CharacterCard | null>(null)
   const [memoryLoading, setMemoryLoading] = useState(false)
+  const [guideStatus, setGuideStatus] = useState<GuideStatus | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [review, setReview] = useState<ChapterReview | null>(null)
+  const [revising, setRevising] = useState(false)
+  const [plotGenerating, setPlotGenerating] = useState(false)
+  const [plotCheckOpen, setPlotCheckOpen] = useState(false)
+  const [plotChecking, setPlotChecking] = useState(false)
+  const [plotCheck, setPlotCheck] = useState<PlotReview | null>(null)
   const [characterForm] = Form.useForm()
   const [settingForm] = Form.useForm()
   const editorRef = useRef<Editor>(null)
-  const appliedTemplateRef = useRef<string | null>(null)
   const generatingRef = useRef<HTMLDivElement>(null)
   const chapterContentRef = useRef<HTMLDivElement>(null)
   const streamEndRef = useRef<HTMLDivElement>(null)
@@ -108,7 +142,11 @@ const Novel: React.FC = () => {
       fetchChapters()
       fetchNovelMemory()
     }
-  }, [id, isAuthenticated, authLoading, navigate])
+  }, [id, isAuthenticated, authLoading, navigate]) // eslint-disable-line react-hooks/exhaustive-deps -- 数据加载函数随小说 ID 统一触发，避免重复请求
+
+  useEffect(() => {
+    return () => aiService.cancelRequest(`write-${id || 'standalone'}`)
+  }, [id])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -149,6 +187,11 @@ const Novel: React.FC = () => {
   }, [generatedContent, loading])
 
   useEffect(() => {
+    if (!id || !generatedContent.trim()) return
+    localStorage.setItem(`novel-stream-draft-${id}`, generatedContent)
+  }, [generatedContent, id])
+
+  useEffect(() => {
     if (!loading && currentChapter && pendingScrollToChapterRef.current) {
       pendingScrollToChapterRef.current = false
       scrollToElement(chapterContentRef.current, 'smooth')
@@ -159,12 +202,14 @@ const Novel: React.FC = () => {
     if (!id) return
     try {
       setMemoryLoading(true)
-      const [cards, setting] = await Promise.all([
+      const [cards, setting, nextGuideStatus] = await Promise.all([
         novelService.getCharacterCards(Number(id)),
-        novelService.getNovelSetting(Number(id))
+        novelService.getNovelSetting(Number(id)),
+        novelService.getGuideStatus(Number(id)).catch(() => null)
       ])
       setCharacterCards(cards)
       setNovelSetting(setting)
+      setGuideStatus(nextGuideStatus)
       settingForm.setFieldsValue(setting)
     } catch (error) {
       console.error('获取小说记忆失败:', error)
@@ -186,19 +231,26 @@ const Novel: React.FC = () => {
   }
 
   // 加载章节内容到编辑器
-  const loadChapter = (chapter: Chapter) => {
+  const loadChapter = async (chapter: Chapter) => {
     // 如果章节已经被选中，不重复加载
     if (currentChapter?.id === chapter.id) {
       return
     }
-    
-    setCurrentChapter(chapter)
-    setChapterTitle(chapter.title || '')
+    let fullChapter = chapter
+    try {
+      if (!chapter.content) fullChapter = await novelService.getChapter(chapter.id)
+    } catch (error) {
+      message.error('加载章节正文失败')
+      return
+    }
+
+    setCurrentChapter(fullChapter)
+    setChapterTitle(fullChapter.title || '')
     const newContentState = EditorState.createWithContent(
       convertFromRaw({
         blocks: [{
-          key: 'chapter-' + chapter.id,
-          text: chapter.content,
+          key: 'chapter-' + fullChapter.id,
+          text: fullChapter.content,
           type: 'unstyled',
           depth: 0,
           inlineStyleRanges: [],
@@ -210,7 +262,7 @@ const Novel: React.FC = () => {
     )
     setEditorState(newContentState)
     setEditing(false)
-    message.success(`已加载章节: ${chapter.title || '未命名章节'}`)
+    message.success(`已加载章节: ${fullChapter.title || '未命名章节'}`)
   }
 
   // 删除章节
@@ -304,14 +356,15 @@ const Novel: React.FC = () => {
   }
 
   // 导出为 TXT 格式
-  const exportToTxt = () => {
+  const exportToTxt = async () => {
     if (chapters.length === 0) {
       message.warning('暂无章节可导出')
       return
     }
 
+    const fullChapters = await Promise.all(chapters.map((chapter) => novelService.getChapter(chapter.id)))
     let content = ''
-    chapters.forEach((chapter, index) => {
+    fullChapters.forEach((chapter, index) => {
       content += `第${index + 1}章 ${chapter.title || '未命名章节'}\n\n`
       content += `${chapter.content}\n\n`
       content += `========================================\n\n`
@@ -330,16 +383,17 @@ const Novel: React.FC = () => {
   }
 
   // 导出为 JSON 格式
-  const exportToJson = () => {
+  const exportToJson = async () => {
     if (chapters.length === 0) {
       message.warning('暂无章节可导出')
       return
     }
 
+    const fullChapters = await Promise.all(chapters.map((chapter) => novelService.getChapter(chapter.id)))
     const novelData = {
       novelId: id,
       exportTime: new Date().toISOString(),
-      chapters: chapters.map((chapter, index) => ({
+      chapters: fullChapters.map((chapter, index) => ({
         order: index + 1,
         id: chapter.id,
         title: chapter.title || '未命名章节',
@@ -445,54 +499,78 @@ const Novel: React.FC = () => {
     }
   }
 
-  const applyPromptTemplate = (template: PromptTemplate) => {
-    setSelectedTemplateId(template.id)
-
-    const builtInGenres = ['玄幻', '仙侠', '都市', '历史', '科幻', '言情']
-    if (builtInGenres.includes(template.genre)) {
-      setGenre(template.genre)
-      setCustomGenre('')
-    } else {
-      setGenre('自定义')
-      setCustomGenre(template.genre)
-    }
-
-    const builtInStyles = ['正常', '浪漫', '英雄主义', '神秘', '幽默', '悲剧']
-    if (builtInStyles.includes(template.style)) {
-      setStyle(template.style)
-      setCustomStyle('')
-    } else {
-      setStyle('自定义')
-      setCustomStyle(template.style)
-    }
-
-    setCorePlot(template.corePlot)
-    setCharacters(template.characters)
-    setOther(`${template.other}\n\n模板说明：${template.reason}`)
-    setWordCount(template.wordCount)
-    message.success(`已应用模板：${template.title}`)
+  /** 打开生成弹窗时，用小说记忆回填题材、风格和人物，用户只需补本章要求。 */
+  const applyConfirmedSettingDefaults = () => {
+    const defaults = buildDefaultsFromMemory(novelSetting, characterCards)
+    setGenre(defaults.genre)
+    setCustomGenre(defaults.customGenre)
+    setStyle(defaults.style)
+    setCustomStyle(defaults.customStyle)
+    if (defaults.characters) setCharacters(defaults.characters)
   }
 
-  useEffect(() => {
-    const state = location.state as { promptTemplateId?: string; openGenerateModal?: boolean } | null
-    if (!state?.promptTemplateId || appliedTemplateRef.current === state.promptTemplateId) {
+  /** 将纯文本草稿载入编辑器，保留用户在审查后继续手动修改的能力。 */
+  const replaceEditorContent = (content: string) => {
+    setEditorState(EditorState.createWithContent(
+      convertFromRaw({
+        blocks: [{
+          key: `draft-${Date.now()}`,
+          text: content,
+          type: 'unstyled',
+          depth: 0,
+          inlineStyleRanges: [],
+          entityRanges: [],
+          data: {}
+        }],
+        entityMap: {}
+      })
+    ))
+  }
+
+  /** 审查失败只提示，不阻断章节编辑和保存。 */
+  const runChapterReview = async (chapterId?: number, content?: string) => {
+    if (!id) return
+    const draft = content || editorState.getCurrentContent().getPlainText()
+    if (!draft.trim()) {
+      message.warning('暂无正文可审查')
       return
     }
-
-    const template = PROMPT_TEMPLATES.find((item) => item.id === state.promptTemplateId)
-    if (!template) {
-      return
+    try {
+      setReviewOpen(true)
+      setReviewLoading(true)
+      setReview(null)
+      setReview(await aiService.reviewChapter(Number(id), chapterId || currentChapter?.id, draft))
+    } catch (error) {
+      message.warning(error instanceof Error ? `AI 审查暂不可用：${error.message}` : 'AI 审查暂不可用，仍可保存正文')
+    } finally {
+      setReviewLoading(false)
     }
+  }
 
-    appliedTemplateRef.current = state.promptTemplateId
-    applyPromptTemplate(template)
-    if (state.openGenerateModal) {
-      setActionType('generate')
-      setModalVisible(true)
+  /** 仅把用户勾选的审查意见交回写作智能体，返修后仍需人工保存。 */
+  const reviseBySelectedIssues = async (issues: ReviewIssue[]) => {
+    if (!id) return
+    const draft = editorState.getCurrentContent().getPlainText()
+    try {
+      setRevising(true)
+      setGeneratedContent('')
+      const revised = await aiService.reviseByReview(
+        Number(id),
+        currentChapter?.id,
+        draft,
+        issues,
+        (chunk) => setGeneratedContent((previous) => previous + chunk)
+      )
+      replaceEditorContent(revised)
+      setEditing(true)
+      setReviewOpen(false)
+      message.success('返修草稿已载入编辑器，请人工确认后保存')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '按审查意见返修失败')
+    } finally {
+      setRevising(false)
     }
-
-    navigate(location.pathname, { replace: true })
-  }, [location.pathname, location.state, navigate])
+  }
 
   const handleGenerate = async () => {
     // 先关闭弹窗
@@ -510,11 +588,13 @@ const Novel: React.FC = () => {
       const ctx = buildNovelContext()
       
       if (actionType === 'generate') {
-        const selectedGenre = genre === '自定义' ? customGenre : genre
-        const selectedStyle = style === '自定义' ? customStyle : style
-        
+        const memoryDefaults = buildDefaultsFromMemory(novelSetting, characterCards)
+        const selectedGenre = (genre === '自定义' ? customGenre : genre)?.trim() || memoryDefaults.customGenre || memoryDefaults.genre
+        const selectedStyle = (style === '自定义' ? customStyle : style)?.trim() || memoryDefaults.customStyle || memoryDefaults.style
+        const chapterPlot = corePlot.trim() || '请根据已确认的世界观、人物卡和大纲生成下一章'
+
         result = await aiService.generateChapter(
-          corePlot || '请生成一个章节',
+          chapterPlot,
           chapterTitle,
           (chunk) => {
             setGeneratedContent(prev => prev + chunk)
@@ -526,8 +606,8 @@ const Novel: React.FC = () => {
           {
             genre: selectedGenre,
             style: selectedStyle,
-            corePlot,
-            characters,
+            corePlot: chapterPlot,
+            characters: characters.trim() || memoryDefaults.characters,
             wordCount,
             other
           }
@@ -584,21 +664,7 @@ const Novel: React.FC = () => {
       }
 
       // 将生成的内容添加到编辑器
-      const newContentState = EditorState.createWithContent(
-        convertFromRaw({
-          blocks: [{
-            key: 'generated',
-            text: result.content,
-            type: 'unstyled',
-            depth: 0,
-            inlineStyleRanges: [],
-            entityRanges: [],
-            data: {}
-          }],
-          entityMap: {}
-        })
-      )
-      setEditorState(newContentState)
+      replaceEditorContent(result.content)
       
       // 生成完成后保存
       if (actionType === 'polish') {
@@ -606,7 +672,11 @@ const Novel: React.FC = () => {
           message.warning('请先选择一个章节')
           return
         }
-        const updated = await novelService.updateChapterContent(currentChapter.id, result.content, result.plot)
+        const hadPlot = Boolean(currentChapter.plot?.trim())
+        let updated = await novelService.updateChapterContent(currentChapter.id, result.content)
+        if (!hadPlot) {
+          updated = await ensureChapterSummary(updated, result.content)
+        }
         message.success('润色已覆盖原章节（旧内容可在生成历史中查看）')
         // 润色后自动创建一个版本快照，方便随时切换/回滚
         try {
@@ -618,8 +688,14 @@ const Novel: React.FC = () => {
         }
         await fetchChapters()
         loadChapter(updated)
+        await runChapterReview(updated.id, result.content)
       } else {
-        await handleSaveChapter(result.content, result.plot)
+        let savedChapter = await handleSaveChapter(result.content)
+        if (savedChapter) {
+          savedChapter = await ensureChapterSummary(savedChapter, result.content)
+          localStorage.removeItem(`novel-stream-draft-${id}`)
+          await runChapterReview(savedChapter.id, result.content)
+        }
       }
     } catch (error) {
       pendingScrollToChapterRef.current = false
@@ -669,11 +745,11 @@ const Novel: React.FC = () => {
       return
     }
     try {
-      const updated = await novelService.updateChapterContent(
-        currentChapter.id,
-        contentText,
-        currentChapter.plot
-      )
+      const hadPlot = Boolean(currentChapter.plot?.trim())
+      let updated = await novelService.updateChapterContent(currentChapter.id, contentText)
+      if (!hadPlot) {
+        updated = await ensureChapterSummary(updated, contentText)
+      }
       message.success('保存成功')
       await fetchChapters()
       setCurrentChapter(updated)
@@ -684,11 +760,79 @@ const Novel: React.FC = () => {
     }
   }
 
-  const handleSaveChapter = async (content: string, plot?: string) => {
+  /** 仅在章节还没有概括时生成，失败不阻断正文保存。 */
+  const ensureChapterSummary = async (chapter: Chapter, content: string): Promise<Chapter> => {
+    if (chapter.plot?.trim() || !content.trim() || !id) return chapter
+    try {
+      setPlotGenerating(true)
+      const plot = await aiService.summarizeChapter(Number(id), chapter.id, content, chapter.outline)
+      const nextChapter = { ...chapter, plot, stalePlot: false }
+      setCurrentChapter(nextChapter)
+      return nextChapter
+    } catch (error) {
+      console.warn('章节已保存，但首次概括生成失败:', error)
+      message.warning('章节已保存，概括未生成，可稍后点击「重新生成概括」')
+      return chapter
+    } finally {
+      setPlotGenerating(false)
+    }
+  }
+
+  /** 按当前正文重新生成章节概括，覆盖旧摘要。 */
+  const regenerateChapterSummary = async () => {
+    if (!id || !currentChapter) {
+      message.warning('请先选择一个章节')
+      return
+    }
+    const contentText = (editing ? editorState.getCurrentContent().getPlainText() : currentChapter.content) || ''
+    if (!contentText.trim()) {
+      message.warning('章节内容为空，无法生成概括')
+      return
+    }
+    try {
+      setPlotGenerating(true)
+      const plot = await aiService.summarizeChapter(Number(id), currentChapter.id, contentText, currentChapter.outline)
+      const nextChapter = { ...currentChapter, content: contentText, plot, stalePlot: false }
+      setCurrentChapter(nextChapter)
+      await fetchChapters()
+      message.success('章节概括已更新')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '重新生成概括失败')
+    } finally {
+      setPlotGenerating(false)
+    }
+  }
+
+  /** 用审查智能体对照正文检查概括是否准确。 */
+  const checkChapterSummary = async () => {
+    if (!id || !currentChapter) {
+      message.warning('请先选择一个章节')
+      return
+    }
+    const contentText = (editing ? editorState.getCurrentContent().getPlainText() : currentChapter.content) || ''
+    const plot = currentChapter.plot?.trim() || ''
+    if (!plot) {
+      message.warning('还没有章节概括，请先保存正文或重新生成')
+      return
+    }
+    try {
+      setPlotCheckOpen(true)
+      setPlotChecking(true)
+      setPlotCheck(null)
+      setPlotCheck(await aiService.reviewChapterSummary(Number(id), currentChapter.id, contentText, plot))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '检查章节概括失败')
+      setPlotCheckOpen(false)
+    } finally {
+      setPlotChecking(false)
+    }
+  }
+
+  const handleSaveChapter = async (content: string, plot?: string): Promise<Chapter | null> => {
     try {
       if (!content.trim()) {
         message.error('章节内容不能为空')
-        return
+        return null
       }
 
       // 为续写和润色设置默认标题
@@ -708,14 +852,17 @@ const Novel: React.FC = () => {
 
       await fetchChapters()
       loadChapter(newChapter)
+      return newChapter
     } catch (error) {
       console.error('保存失败:', error)
       message.error('保存失败')
+      return null
     }
   }
 
   const openGenerateModal = () => {
     setActionType('generate')
+    applyConfirmedSettingDefaults()
     setModalVisible(true)
   }
 
@@ -1062,6 +1209,9 @@ const Novel: React.FC = () => {
         </Col>
         <Col>
           <Space className="novel-actions novel-actions-desktop">
+            <Button onClick={() => navigate(`/novel/${id}/guide`)}>
+              创作向导
+            </Button>
             <Button
               icon={<BranchesOutlined />}
               onClick={() => navigate(`/novel/${id}/versions`)}
@@ -1077,10 +1227,7 @@ const Novel: React.FC = () => {
             <Button type="primary" className="novel-action-button" icon={<PlusOutlined />} onClick={handleCreateBlankChapter}>
               新建章节
             </Button>
-            <Button className="novel-action-button" onClick={() => {
-              setActionType('generate')
-              setModalVisible(true)
-            }}>
+            <Button className="novel-action-button" onClick={openGenerateModal}>
               生成章节
             </Button>
             <Button className="novel-action-button" onClick={() => {
@@ -1110,6 +1257,9 @@ const Novel: React.FC = () => {
             <Button type="default" onClick={handleUpdateChapter}>
               保存章节
             </Button>
+            <Button disabled={!currentChapter} onClick={() => runChapterReview()}>
+              AI 审查
+            </Button>
             <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
               <Button icon={<DownloadOutlined />}>
                 导出小说
@@ -1119,20 +1269,19 @@ const Novel: React.FC = () => {
         </Col>
       </Row>
 
-      <Card
-        className="novel-memory-card--desktop novel-memory-panel"
-        title="小说记忆"
-        loading={memoryLoading}
-        style={{ marginBottom: '1.5rem' }}
-      >
-        {memoryTabs}
-      </Card>
-
       <Collapse
         className="novel-memory-collapse novel-memory-panel"
         items={[{
           key: 'memory',
-          label: `小说记忆${memoryLoading ? '（加载中）' : ''}`,
+          label: (
+            <span className="novel-memory-collapse-label">
+              <span>小说记忆{memoryLoading ? '（加载中）' : ''}</span>
+              <Tag>{characterCards.length} 张人物卡</Tag>
+              {novelSetting?.overallOutline?.trim() && <Tag color="blue">已有大纲</Tag>}
+              {novelSetting?.worldview?.trim() && <Tag color="cyan">已有世界观</Tag>}
+              <span className="novel-memory-collapse-hint">点击展开或收起</span>
+            </span>
+          ),
           children: memoryLoading ? <Loading /> : memoryTabs
         }]}
       />
@@ -1217,6 +1366,30 @@ const Novel: React.FC = () => {
                   {currentChapter.content || '章节内容为空'}
                 </div>
               )}
+              <div className="novel-plot-panel">
+                <div className="novel-plot-panel__header">
+                  <Space wrap>
+                    <span className="novel-plot-panel__title">章节概括</span>
+                    {currentChapter.stalePlot && currentChapter.plot?.trim() && (
+                      <Tag color="warning">正文已改，概括可能过期</Tag>
+                    )}
+                    {plotGenerating && <Tag color="processing">生成中</Tag>}
+                  </Space>
+                  <Space wrap>
+                    <Button size="small" loading={plotGenerating} disabled={!currentChapter.content?.trim() && !editing} onClick={() => void regenerateChapterSummary()}>
+                      重新生成概括
+                    </Button>
+                    <Button size="small" loading={plotChecking} onClick={() => void checkChapterSummary()}>
+                      检查章节概括
+                    </Button>
+                  </Space>
+                </div>
+                <div className="novel-plot-panel__body">
+                  {currentChapter.plot?.trim()
+                    ? currentChapter.plot
+                    : '首次保存正文时会自动生成概括。之后可用按钮重新生成或检查。'}
+                </div>
+              </div>
             </div>
           </Col>
         </Row>
@@ -1272,6 +1445,9 @@ const Novel: React.FC = () => {
         </Button>
         <Button size="small" onClick={openPolishModal}>
           润色
+        </Button>
+        <Button size="small" disabled={!currentChapter} onClick={() => runChapterReview()}>
+          审查
         </Button>
         <Button size="small" onClick={handleUpdateChapter}>
           保存
@@ -1356,156 +1532,113 @@ const Novel: React.FC = () => {
         confirmLoading={loading}
         width={600}
       >
+        {actionType !== 'polish' && guideStatus && guideStatus.completeness < 0.5 && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type={guideStatus.completeness < 0.3 ? 'error' : 'warning'}
+            showIcon
+            message={`当前设定完备度 ${Math.round(guideStatus.completeness * 100)}%`}
+            description="人物或世界观可能前后不一致。您仍可继续生成，也可以先回创作向导完善设定。"
+            action={<Button size="small" onClick={() => navigate(`/novel/${id}/guide`)}>完善设定</Button>}
+          />
+        )}
         {actionType === 'generate' && (
           <Form layout="vertical">
-            <Form.Item
-              label={`Prompt 模板库（资料更新：${PROMPT_TEMPLATES_UPDATED_AT}）`}
-              name="promptTemplate"
-            >
-              <Select
-                allowClear
-                showSearch
-                placeholder="选择热门题材模板，一键填充生成参数"
-                value={selectedTemplateId}
-                onChange={(templateId) => {
-                  const template = PROMPT_TEMPLATES.find((item) => item.id === templateId)
-                  if (template) {
-                    applyPromptTemplate(template)
-                  } else {
-                    setSelectedTemplateId(undefined)
-                  }
-                }}
-                optionLabelProp="label"
-                options={PROMPT_TEMPLATES.map((template) => ({
-                  value: template.id,
-                  label: template.title,
-                  template
-                }))}
-                optionRender={(option) => {
-                  const template = option.data.template
-                  return (
-                    <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                      <Space wrap>
-                        <span>{template.title}</span>
-                        <Tag color="blue">{template.category}</Tag>
-                        {template.tags.slice(0, 3).map((tag) => <Tag key={tag}>{tag}</Tag>)}
-                      </Space>
-                      <span style={{ color: '#a5b4fc', fontSize: 12 }}>{template.reason}</span>
-                    </Space>
-                  )
-                }}
+            <Alert
+              className="novel-generate-memory-hint"
+              type="info"
+              showIcon
+              message="题材、风格、人物卡、世界观和大纲会自动使用已确认的小说记忆，无需重复填写。"
+            />
+            <Form.Item label="章节标题" name="chapterTitle">
+              <Input
+                placeholder="选填，留空则由 AI 按大纲拟定"
+                value={chapterTitle}
+                onChange={(e) => setChapterTitle(e.target.value)}
               />
             </Form.Item>
-            <Form.Item
-              label="章节标题"
-              name="chapterTitle"
-            >
-              <Input 
-                placeholder="请输入章节标题（选填）" 
-                value={chapterTitle} 
-                onChange={(e) => setChapterTitle(e.target.value)} 
+            <Form.Item label="本章剧情" name="corePlot">
+              <Input.TextArea
+                placeholder="选填。只写这一章要发生的事；留空则按大纲和前文概括续写"
+                rows={3}
+                value={corePlot}
+                onChange={(e) => setCorePlot(e.target.value)}
               />
             </Form.Item>
-            <Form.Item
-              label="题材"
-              name="genre"
-              rules={[{ required: true, message: '请选择题材' }]}
-            >
-              <Select value={genre} onChange={(value) => setGenre(value)}>
-                <Option value="玄幻">玄幻</Option>
-                <Option value="仙侠">仙侠</Option>
-                <Option value="都市">都市</Option>
-                <Option value="历史">历史</Option>
-                <Option value="科幻">科幻</Option>
-                <Option value="言情">言情</Option>
-                <Option value="自定义">自定义</Option>
-              </Select>
-            </Form.Item>
-            {genre === '自定义' && (
-              <Form.Item
-                label="自定义题材"
-                name="customGenre"
-                rules={[{ required: true, message: '请输入自定义题材' }]}
-              >
-                <Input 
-                  placeholder="请输入自定义题材" 
-                  value={customGenre} 
-                  onChange={(e) => setCustomGenre(e.target.value)} 
-                />
-              </Form.Item>
-            )}
-            <Form.Item
-              label="风格"
-              name="style"
-              rules={[{ required: true, message: '请选择风格' }]}
-            >
-              <Select value={style} onChange={(value) => setStyle(value)}>
-                <Option value="正常">正常</Option>
-                <Option value="浪漫">浪漫</Option>
-                <Option value="英雄主义">英雄主义</Option>
-                <Option value="神秘">神秘</Option>
-                <Option value="幽默">幽默</Option>
-                <Option value="悲剧">悲剧</Option>
-                <Option value="自定义">自定义</Option>
-              </Select>
-            </Form.Item>
-            {style === '自定义' && (
-              <Form.Item
-                label="自定义风格"
-                name="customStyle"
-                rules={[{ required: true, message: '请输入自定义风格' }]}
-              >
-                <Input 
-                  placeholder="请输入自定义风格" 
-                  value={customStyle} 
-                  onChange={(e) => setCustomStyle(e.target.value)} 
-                />
-              </Form.Item>
-            )}
-            <Form.Item
-              label="字数"
-              name="wordCount"
-            >
+            <Form.Item label="字数" name="wordCount">
               <Select value={wordCount} onChange={(value) => setWordCount(value)}>
                 <Option value="2000">2000字</Option>
                 <Option value="3000">3000字</Option>
                 <Option value="5000">5000字</Option>
               </Select>
             </Form.Item>
-            <Form.Item
-              label="核心剧情"
-              name="corePlot"
-              rules={[{ required: true, message: '请输入核心剧情' }]}
-            >
-              <Input.TextArea 
-                placeholder="请输入核心剧情" 
-                rows={2} 
-                value={corePlot} 
-                onChange={(e) => setCorePlot(e.target.value)} 
+            <Form.Item label="其他要求" name="other">
+              <Input.TextArea
+                placeholder="选填，例如节奏、视角、必须出现的道具"
+                rows={2}
+                value={other}
+                onChange={(e) => setOther(e.target.value)}
               />
             </Form.Item>
-            <Form.Item
-              label="登场人物性格"
-              name="characters"
-            >
-              <Input.TextArea 
-                placeholder="请输入登场人物性格（选填）" 
-                rows={2} 
-                value={characters} 
-                onChange={(e) => setCharacters(e.target.value)} 
-              />
-            </Form.Item>
-            <Form.Item
-              label="其他要求"
-              name="other"
-            >
-              <Input.TextArea 
-                placeholder="请输入其他要求（选填）" 
-                rows={2} 
-                value={other} 
-                onChange={(e) => setOther(e.target.value)} 
-              />
-            </Form.Item>
+            <Collapse
+              ghost
+              items={[{
+                key: 'extra',
+                label: '更多参数（通常不用改）',
+                children: (
+                  <>
+                    <Form.Item label="题材" name="genre">
+                      <Select value={genre} onChange={(value) => setGenre(value)}>
+                        <Option value="玄幻">玄幻</Option>
+                        <Option value="仙侠">仙侠</Option>
+                        <Option value="都市">都市</Option>
+                        <Option value="历史">历史</Option>
+                        <Option value="科幻">科幻</Option>
+                        <Option value="言情">言情</Option>
+                        <Option value="自定义">自定义</Option>
+                      </Select>
+                    </Form.Item>
+                    {genre === '自定义' && (
+                      <Form.Item label="自定义题材" name="customGenre">
+                        <Input
+                          placeholder="请输入自定义题材"
+                          value={customGenre}
+                          onChange={(e) => setCustomGenre(e.target.value)}
+                        />
+                      </Form.Item>
+                    )}
+                    <Form.Item label="风格" name="style">
+                      <Select value={style} onChange={(value) => setStyle(value)}>
+                        <Option value="正常">正常</Option>
+                        <Option value="浪漫">浪漫</Option>
+                        <Option value="英雄主义">英雄主义</Option>
+                        <Option value="神秘">神秘</Option>
+                        <Option value="幽默">幽默</Option>
+                        <Option value="悲剧">悲剧</Option>
+                        <Option value="自定义">自定义</Option>
+                      </Select>
+                    </Form.Item>
+                    {style === '自定义' && (
+                      <Form.Item label="自定义风格" name="customStyle">
+                        <Input
+                          placeholder="请输入自定义风格"
+                          value={customStyle}
+                          onChange={(e) => setCustomStyle(e.target.value)}
+                        />
+                      </Form.Item>
+                    )}
+                    <Form.Item label="登场人物补充" name="characters">
+                      <Input.TextArea
+                        placeholder="已自动带入启用人物卡，只需补充本章特别要求"
+                        rows={2}
+                        value={characters}
+                        onChange={(e) => setCharacters(e.target.value)}
+                      />
+                    </Form.Item>
+                  </>
+                )
+              }]}
+            />
           </Form>
         )}
         {actionType === 'continue' && (
@@ -1549,6 +1682,45 @@ const Novel: React.FC = () => {
           </Form>
         )}
       </Modal>
+      <Modal
+        title="检查章节概括"
+        open={plotCheckOpen}
+        onCancel={() => setPlotCheckOpen(false)}
+        footer={<Button onClick={() => setPlotCheckOpen(false)}>关闭</Button>}
+      >
+        {plotChecking ? (
+          <Loading />
+        ) : plotCheck?.available === false ? (
+          <Alert type="warning" showIcon message={plotCheck.message || '概括检查暂不可用'} />
+        ) : plotCheck ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert
+              type={plotCheck.verdict === 'pass' ? 'success' : 'warning'}
+              showIcon
+              message={plotCheck.verdict === 'pass' ? '概括与正文一致' : '概括需要修订'}
+              description={plotCheck.summary}
+            />
+            {(plotCheck.issues || []).map((issue) => (
+              <Alert
+                key={issue.id}
+                type={issue.severity === 'major' ? 'error' : 'warning'}
+                showIcon
+                message={issue.message}
+                description={issue.suggestion}
+              />
+            ))}
+          </Space>
+        ) : null}
+      </Modal>
+      <ReviewPanel
+        open={reviewOpen}
+        loading={reviewLoading}
+        review={review}
+        revising={revising}
+        onClose={() => setReviewOpen(false)}
+        onReview={() => runChapterReview()}
+        onRevise={reviseBySelectedIssues}
+      />
     </div>
   )
 }

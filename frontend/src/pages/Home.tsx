@@ -23,27 +23,27 @@ const Home: React.FC = () => {
             SmartScribe
           </Title>
           <Title level={2} className="home-subtitle">
-            AI 驱动的未来创作引擎
+            AI 引导、人类把关的网文共创伙伴
           </Title>
           <Paragraph className="home-description">
-            智能生成、实时续写、创意激发——让想象力突破边界。
+            从灵感、设定、人物到大纲与正文，AI 全程提案，由你审核并决定最终作品。
           </Paragraph>
           <div className="home-features">
             <div className="feature-item">
               <span className="feature-icon">⚡</span>
-              <span className="feature-text">智能生成引擎</span>
+              <span className="feature-text">灵感智能体提案</span>
             </div>
             <div className="feature-item">
               <span className="feature-icon">🌊</span>
-              <span className="feature-text">流式实时响应</span>
+              <span className="feature-text">写作智能体成文</span>
             </div>
             <div className="feature-item">
               <span className="feature-icon">🎯</span>
-              <span className="feature-text">精准创作控制</span>
+              <span className="feature-text">审查智能体质检</span>
             </div>
             <div className="feature-item">
               <span className="feature-icon">🚀</span>
-              <span className="feature-text">极速创作体验</span>
+              <span className="feature-text">人工终审定稿</span>
             </div>
           </div>
           <Space size="middle" className="home-actions">

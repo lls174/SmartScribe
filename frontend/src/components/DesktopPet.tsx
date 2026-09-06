@@ -233,7 +233,7 @@ export default function DesktopPet() {
       if (modelRef.current === model) modelRef.current = null
       mount.innerHTML = ''
     }
-  }, [enabled, hidden])
+  }, [enabled, hidden]) // eslint-disable-line react-hooks/exhaustive-deps -- 渲染循环函数只操作 ref，重新订阅会重复创建模型
 
   if (!enabled || hidden) return null
 

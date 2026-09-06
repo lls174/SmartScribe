@@ -61,6 +61,7 @@ export interface Chapter {
   content: string
   plot?: string
   outline?: string
+  stalePlot?: boolean
   createdAt: string
   updatedAt: string
 }

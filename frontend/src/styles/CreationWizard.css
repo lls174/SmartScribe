@@ -1,0 +1,126 @@
+.creation-wizard {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 96px;
+}
+
+.creation-wizard--loading {
+  min-height: 55vh;
+  display: grid;
+  place-items: center;
+}
+
+.creation-wizard__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.creation-wizard__header h2 {
+  margin: 0 0 4px;
+  background: none;
+  -webkit-text-fill-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.guide-progress,
+.creation-wizard__content {
+  padding: 22px;
+  border: 1px solid var(--header-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-color) 88%, transparent);
+}
+
+.guide-progress {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.guide-progress__score {
+  display: grid;
+  grid-template-columns: 90px minmax(180px, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.creation-wizard__content {
+  min-height: 420px;
+}
+
+.ai-proposal-field__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  min-height: 120px;
+}
+
+.ai-proposal-field__item {
+  height: 100%;
+}
+
+.ai-proposal-field__actions {
+  margin-top: 12px;
+}
+
+.guide-muted {
+  color: var(--text-secondary);
+}
+
+.creation-wizard__ready {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.creation-wizard__ready-icon {
+  color: var(--primary-color);
+  font-size: 46px;
+}
+
+.creation-wizard__next {
+  position: sticky;
+  bottom: 68px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--header-border);
+  border-radius: 10px;
+  background: var(--surface-color);
+  z-index: 5;
+}
+
+@media (max-width: 900px) {
+  .ai-proposal-field__list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .creation-wizard {
+    width: calc(100% - 20px);
+    padding-top: 14px;
+  }
+
+  .creation-wizard__header {
+    flex-direction: column;
+  }
+
+  .guide-progress,
+  .creation-wizard__content {
+    padding: 14px;
+  }
+
+  .guide-progress__score {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .creation-wizard__next {
+    bottom: 74px;
+  }
+}

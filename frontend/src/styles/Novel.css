@@ -9,8 +9,8 @@
 }
 
 .novel-title {
-  font-size: 2.5rem !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .novel-actions {
@@ -81,7 +81,7 @@
 }
 
 .novel-editor .public-DraftEditorPlaceholder-root {
-  color: #6b7280 !important;
+  color: #6b7280;
 }
 
 .novel-content-preview {
@@ -118,9 +118,11 @@
 }
 
 .novel-generating-title {
-  font-size: 1.2rem !important;
-  color: var(--success-color) !important;
-  margin-bottom: 1rem !important;
+  font-size: 1.2rem;
+  color: var(--success-color);
+  background: none;
+  -webkit-text-fill-color: var(--success-color);
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -154,7 +156,7 @@
 }
 
 .novel-empty-state .ant-typography {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .novel-modal-content {
@@ -162,7 +164,7 @@
 }
 
 .novel-form-label {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -204,31 +206,31 @@
 
 /* 小说记忆面板 */
 .novel-memory-panel.ant-card {
-  background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
 }
 
 .novel-memory-panel .ant-card-head {
-  border-bottom: 1px solid var(--border-20) !important;
+  border-bottom: 1px solid var(--border-20);
 }
 
 .novel-memory-panel .ant-card-head-title {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .novel-memory-panel .ant-tabs-tab {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .novel-memory-panel .ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
   text-shadow: none;
 }
 
 .novel-memory-panel .ant-tabs-ink-bar {
-  background: var(--primary-color) !important;
+  background: var(--primary-color);
 }
 
 .novel-memory-hint {
@@ -237,18 +239,47 @@
   line-height: 1.5;
 }
 
+.novel-plot-panel {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-20);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-color) 70%, transparent);
+}
+
+.novel-plot-panel__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.novel-plot-panel__title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.novel-plot-panel__body {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .novel-memory-panel .ant-list-item {
-  border-bottom: 1px solid var(--border-20) !important;
-  padding: 14px 0 !important;
+  border-bottom: 1px solid var(--border-20);
+  padding: 14px 0;
 }
 
 .novel-memory-panel .ant-list-item:last-child {
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 .novel-memory-panel .ant-list-item-meta-title {
-  color: var(--text-primary) !important;
-  margin-bottom: 6px !important;
+  color: var(--text-primary);
+  margin-bottom: 6px;
 }
 
 .novel-memory-char-tags {
@@ -256,7 +287,7 @@
 }
 
 .novel-memory-char-name {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
   font-weight: 600;
   font-size: 15px;
 }
@@ -273,26 +304,26 @@
 }
 
 .novel-memory-tag--role {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
   background: var(--primary-10);
   border: 1px solid var(--primary-50);
 }
 
 .novel-memory-tag--priority {
-  color: var(--secondary-color) !important;
+  color: var(--secondary-color);
   background: color-mix(in srgb, var(--secondary-color) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--secondary-color) 45%, transparent);
 }
 
 html[data-theme='warm-light'] .novel-memory-tag--role,
 html[data-theme='warm-light'] .novel-memory-tag--priority {
-  color: color-mix(in srgb, var(--text-primary) 90%, var(--primary-color)) !important;
+  color: color-mix(in srgb, var(--text-primary) 90%, var(--primary-color));
 }
 
 .novel-memory-tag--inactive {
-  color: var(--text-secondary) !important;
-  background: var(--btn-bg) !important;
-  border: 1px solid var(--border-20) !important;
+  color: var(--text-secondary);
+  background: var(--btn-bg);
+  border: 1px solid var(--border-20);
 }
 
 .novel-memory-char-desc {
@@ -306,38 +337,38 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
 }
 
 .novel-memory-panel .ant-list-item-meta-description {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .novel-memory-panel .ant-list-item-action .ant-btn-link:not(.ant-btn-dangerous) {
-  color: var(--primary-color) !important;
+  color: var(--primary-color);
 }
 
 .novel-memory-panel .ant-list-item-action .ant-btn-link.ant-btn-dangerous {
-  color: var(--error-color) !important;
+  color: var(--error-color);
 }
 
 .novel-memory-panel .ant-form-item-label > label {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .novel-memory-panel textarea.ant-input,
 .novel-memory-panel input.ant-input {
-  background: var(--input-bg) !important;
-  border: 1px solid var(--header-border) !important;
-  border-radius: 8px !important;
-  color: var(--text-primary) !important;
+  background: var(--input-bg);
+  border: 1px solid var(--header-border);
+  border-radius: 8px;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .novel-memory-panel textarea.ant-input::placeholder,
 .novel-memory-panel input.ant-input::placeholder {
-  color: color-mix(in srgb, var(--text-secondary) 75%, transparent) !important;
+  color: color-mix(in srgb, var(--text-secondary) 75%, transparent);
 }
 
 .novel-memory-panel .ant-form-item-extra,
 .novel-memory-panel span[style*='text-secondary'] {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .novel-chapters-collapse {
@@ -359,7 +390,41 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
 }
 
 .novel-memory-collapse {
-  display: none;
+  display: block;
+  margin-bottom: 1.5rem;
+  background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.novel-memory-collapse .ant-collapse-item {
+  border-bottom: none;
+}
+
+.novel-memory-collapse .ant-collapse-header {
+  color: var(--text-primary);
+  font-weight: 600;
+  align-items: center;
+}
+
+.novel-memory-collapse-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.novel-memory-collapse-hint {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.novel-generate-memory-hint {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {
@@ -368,20 +433,20 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
     max-width: none;
   }
 
-  .novel-back-row {
-    display: none !important;
+  #root .novel-back-row {
+    display: none;
   }
 
-  .novel-header {
-    display: none !important;
+  #root .novel-header {
+    display: none;
   }
 
   .novel-title {
-    font-size: 1.25rem !important;
+    font-size: 1.25rem;
   }
 
-  .novel-actions-desktop {
-    display: none !important;
+  #root .novel-actions-desktop {
+    display: none;
   }
 
   .novel-mobile-toolbar {
@@ -419,42 +484,37 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
     text-overflow: ellipsis;
   }
 
-  .novel-memory-card--desktop {
-    display: none !important;
-  }
-
   .novel-memory-collapse {
-    display: block;
     margin-bottom: 12px;
   }
 
   .novel-memory-collapse .ant-collapse-header {
-    color: var(--primary-color) !important;
+    color: var(--primary-color);
     font-weight: 600;
   }
 
   .novel-chapters-collapse {
     display: block;
     margin-bottom: 12px;
-    background: color-mix(in srgb, var(--surface-color) 55%, transparent) !important;
-    border: 1px solid var(--header-border) !important;
-    border-radius: 12px !important;
+    background: color-mix(in srgb, var(--surface-color) 55%, transparent);
+    border: 1px solid var(--header-border);
+    border-radius: 12px;
     overflow: hidden;
   }
 
   .novel-chapters-collapse .ant-collapse-item {
-    border-bottom: none !important;
+    border-bottom: none;
   }
 
   .novel-chapters-collapse .ant-collapse-header {
-    padding: 14px 16px !important;
-    color: var(--primary-color) !important;
+    padding: 14px 16px;
+    color: var(--primary-color);
     font-weight: 600;
-    align-items: center !important;
+    align-items: center;
   }
 
   .novel-chapters-collapse .ant-collapse-content-box {
-    padding: 0 12px 12px !important;
+    padding: 0 12px 12px;
   }
 
   .novel-chapters-collapse-label {
@@ -467,7 +527,7 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
   }
 
   .novel-chapters-count {
-    margin: 0 !important;
+    margin: 0;
     font-size: 0.75rem;
   }
 
@@ -489,8 +549,8 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
     margin: 0;
   }
 
-  .novel-chapters {
-    display: none !important;
+  #root .novel-chapters {
+    display: none;
   }
 
   .novel-editor-container {
@@ -575,8 +635,8 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
 }
 
 .novel-outline-chapter-item {
-  border-bottom: 1px solid var(--border-20) !important;
-  padding: 16px 0 !important;
+  border-bottom: 1px solid var(--border-20);
+  padding: 16px 0;
 }
 
 .novel-outline-chapter-title {
@@ -678,6 +738,7 @@ html[data-theme='warm-light'] .novel-memory-tag--priority {
   overflow: visible;
 }
 
+/* Mermaid 会写 inline style，覆盖 SVG 尺寸和字号只能用 !important */
 .novel-outline-diagram svg {
   display: block;
   max-width: none !important;

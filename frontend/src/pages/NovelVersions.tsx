@@ -46,7 +46,7 @@ const NovelVersions: React.FC = () => {
 
   useEffect(() => {
     load()
-  }, [novelId])
+  }, [novelId]) // eslint-disable-line react-hooks/exhaustive-deps -- 版本列表仅在小说切换时自动加载
 
   const columns = useMemo(() => ([
     {

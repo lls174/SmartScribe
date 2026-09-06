@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/copy-mermaid.mjs && tsc && node --max-old-space-size=2048 node_modules/vite/bin/vite.js build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext ts,tsx --max-warnings 0",
     "test": "vitest run",
     "postinstall": "node scripts/copy-live2d-core.mjs && node scripts/copy-mermaid.mjs",
     "preview": "vite preview"

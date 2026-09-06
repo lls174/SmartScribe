@@ -5,14 +5,14 @@
 }
 
 .creative-title {
-  font-size: 2.5rem !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .creative-description {
-  font-size: 1.1rem !important;
-  color: #c7d2fe !important;
-  margin-bottom: 2rem !important;
+  font-size: 1.1rem;
+  color: #c7d2fe;
+  margin-bottom: 2rem;
 }
 
 .creative-form-card {
@@ -30,9 +30,9 @@
 }
 
 .creative-result-title {
-  font-size: 1.2rem !important;
-  color: var(--primary-color) !important;
-  margin-bottom: 1rem !important;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
 }
 
 .creative-result-content {
@@ -49,7 +49,7 @@
 }
 
 .creative-form-label {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-bottom: 0.5rem;
 }
@@ -125,7 +125,7 @@
   }
   
   .creative-title {
-    font-size: 1.8rem !important;
+    font-size: 1.8rem;
   }
   
   .creative-stats {

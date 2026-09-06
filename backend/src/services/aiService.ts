@@ -10,6 +10,9 @@ export interface AiOptions {
   apiKey?: string
   customBaseURL?: string
   enableDeepThinking?: boolean
+  enableJsonMode?: boolean
+  maxTokens?: number
+  temperature?: number
 }
 
 export interface AiStreamCallbacks {
@@ -70,6 +73,15 @@ const buildThinkingRequestBody = (platform: string, enableDeepThinking: boolean)
     return { enable_thinking: enableDeepThinking }
   }
   return {}
+}
+
+/** 为支持 JSON mode 的兼容平台构建请求参数，自定义平台保持通用兼容。 */
+export const buildJsonModeRequestBody = (platform: string, enableJsonMode: boolean): Record<string, unknown> => {
+  if (!enableJsonMode) return {}
+  const normalizedPlatform = normalizePlatformKey(platform)
+  return normalizedPlatform && normalizedPlatform !== 'custom'
+    ? { response_format: { type: 'json_object' } }
+    : {}
 }
 
 interface ChatCompletionMessage {
@@ -216,9 +228,10 @@ class AIService {
       const requestData: ChatRequestBody = {
         model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4095,
-        temperature: 0.7,
-        ...buildThinkingRequestBody(platform, enableDeepThinking)
+        max_tokens: aiOptions.maxTokens ?? 4095,
+        temperature: aiOptions.temperature ?? 0.7,
+        ...buildThinkingRequestBody(platform, enableDeepThinking),
+        ...buildJsonModeRequestBody(platform, aiOptions.enableJsonMode === true)
       }
 
       const shouldStream = !!(callbacks.onChunk || callbacks.onPhase)
