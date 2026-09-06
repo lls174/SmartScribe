@@ -54,9 +54,9 @@ export default function AiProposalField<T>({
         />
       )}
       <Spin spinning={loading} tip="灵感智能体正在生成可审核选项…">
-        <div className="ai-proposal-field__list">
+        <div className={`ai-proposal-field__list${ !loading && proposals.length === 0 ? ' ai-proposal-field__list--empty' : ''}`}>
           {!loading && proposals.length === 0 ? (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有提案" />
+            <Empty className="ai-proposal-field__empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有提案" />
           ) : proposals.map((proposal, index) => (
             <Card key={index} size="small" className="ai-proposal-field__item">
               {renderProposal(proposal, index)}
