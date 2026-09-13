@@ -6,6 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  width: 100%;
 }
 
 .login-container .ant-card,
@@ -70,13 +71,14 @@
   font-size: 14px;
 }
 
-/* 响应式布局 */
+/* 响应式布局：键盘弹起后改为顶部对齐，避免 100vh 居中把表单顶到半屏外 */
 @media (max-width: 768px) {
   .login-container,
   .register-container {
-    min-height: calc(100vh - 56px);
-    min-height: calc(100dvh - 56px);
-    padding: 1rem;
+    min-height: 0;
+    flex: 1;
+    align-items: flex-start;
+    padding: 1.25rem 1rem 2rem;
   }
   
   .login-container .ant-card,
@@ -98,8 +100,11 @@
   .login-container input.ant-input,
   .register-container input.ant-input,
   .login-container .ant-input-affix-wrapper,
-  .register-container .ant-input-affix-wrapper {
-    height: 40px;
+  .register-container .ant-input-affix-wrapper,
+  .login-container .ant-input-affix-wrapper input,
+  .register-container .ant-input-affix-wrapper input {
+    height: 44px;
+    font-size: 16px;
   }
   
   .login-container .ant-btn-primary,
@@ -139,8 +144,11 @@
   .login-container input.ant-input,
   .register-container input.ant-input,
   .login-container .ant-input-affix-wrapper,
-  .register-container .ant-input-affix-wrapper {
-    height: 36px;
+  .register-container .ant-input-affix-wrapper,
+  .login-container .ant-input-affix-wrapper input,
+  .register-container .ant-input-affix-wrapper input {
+    height: 44px;
+    font-size: 16px;
   }
   
   .login-container .ant-btn-primary,

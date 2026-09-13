@@ -3,6 +3,7 @@ import { Button, Form, Input, Typography, Card, Alert } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import { userService } from '@services/userService'
 import { useAuth } from '@hooks/useAuth'
+import { scrollFocusedInputIntoView } from '@hooks/useVisualViewportHeight'
 import { getApiErrorMessage } from '@utils/index'
 import '@styles/Login.css'
 
@@ -38,14 +39,14 @@ const Login: React.FC = () => {
             name="username"
             rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input placeholder="请输入用户名" />
+            <Input placeholder="请输入用户名" onFocus={scrollFocusedInputIntoView} />
           </Form.Item>
           <Form.Item
             label="密码"
             name="password"
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input.Password placeholder="请输入密码" />
+            <Input.Password placeholder="请输入密码" onFocus={scrollFocusedInputIntoView} />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} style={{ width: '100%' }}>

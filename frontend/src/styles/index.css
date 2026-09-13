@@ -147,6 +147,26 @@ body::before {
   z-index: 1;
 }
 
+/* 登录/注册页：高度跟随可见视口，键盘弹起时不留下半屏空白 */
+html.vv-lock,
+html.vv-lock body,
+html.vv-lock #root {
+  height: var(--app-vv-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.vv-lock body::before {
+  height: var(--app-vv-height, 100%);
+}
+
+html.vv-lock .app-layout--auth {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
   font-weight: 600;

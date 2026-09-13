@@ -5,6 +5,7 @@ import Header from './Header'
 import BottomNav from './BottomNav'
 import MobileTopBar from './MobileTopBar'
 import DesktopPet from '@components/DesktopPet'
+import { useVisualViewportHeight } from '@hooks/useVisualViewportHeight'
 
 const { Content, Footer } = AntLayout
 
@@ -15,12 +16,16 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { pathname } = useLocation()
   const isNovelEditor = /^\/novel\/[^/]+$/.test(pathname)
+  const isHome = pathname === '/'
+  const isAuthPage = pathname === '/login' || pathname === '/register'
+  useVisualViewportHeight(isAuthPage)
 
   return (
     <AntLayout
-      className="app-layout"
+      className={`app-layout${isAuthPage ? ' app-layout--auth' : ''}`}
       style={{
-        minHeight: '100vh',
+        minHeight: isAuthPage ? 'var(--app-vv-height, 100dvh)' : '100vh',
+        height: isAuthPage ? 'var(--app-vv-height, 100dvh)' : undefined,
         display: 'flex',
         flexDirection: 'column',
         background: 'transparent'
@@ -30,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <MobileTopBar />
       <DesktopPet />
       <Content
-        className={`app-main-content${isNovelEditor ? ' app-main-content--novel-editor' : ''}`}
+        className={`app-main-content${isNovelEditor ? ' app-main-content--novel-editor' : ''}${isHome ? ' app-main-content--home' : ''}`}
         style={{
           background: 'transparent',
           flex: 1

@@ -224,6 +224,16 @@
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
+  /* 登录/注册没有底部导航，去掉预留高度，避免键盘区域露出空白 */
+  #root .app-layout--auth .app-main-content {
+    padding-bottom: env(safe-area-inset-bottom);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* 小说编辑页：为底部 AI 操作条留出空间 */
   #root .app-main-content--novel-editor {
     padding-bottom: calc(128px + env(safe-area-inset-bottom));
