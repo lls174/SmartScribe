@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react'
-import { Button, Modal, Typography, Space, Row, Col } from 'antd'
+import { Button, Modal, Typography, Row, Col } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@hooks/useAuth'
+import { useMediaQuery } from '@hooks/useMediaQuery'
 import '@styles/Home.css'
 
 const { Title, Paragraph } = Typography
@@ -91,31 +92,38 @@ const USAGE_STEPS = [
 const Home: React.FC = () => {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const canHoverPreview = useMediaQuery('(hover: hover) and (pointer: fine) and (min-width: 769px)')
   const [activeFeature, setActiveFeature] = useState<HomeFeature | null>(null)
+  const [featureModal, setFeatureModal] = useState<HomeFeature | null>(null)
   const [guideOpen, setGuideOpen] = useState(false)
   const hideTimerRef = useRef<number>(0)
 
-  /** 移入说明框时立刻展示对应介绍。 */
+  /** 桌面移入说明框时，在右侧展示介绍。 */
   const showFeature = (feature: HomeFeature) => {
+    if (!canHoverPreview) {
+      return
+    }
     window.clearTimeout(hideTimerRef.current)
     setActiveFeature(feature)
   }
 
-  /** 移出时稍作延迟再收起，避免卡片之间切换时闪烁。 */
+  /** 桌面移出时稍作延迟再收起，避免卡片之间切换时闪烁。 */
   const hideFeature = () => {
+    if (!canHoverPreview) {
+      return
+    }
     window.clearTimeout(hideTimerRef.current)
     hideTimerRef.current = window.setTimeout(() => {
       setActiveFeature(null)
     }, 140)
   }
 
-  /** 触屏没有悬停，点击切换说明。 */
-  const toggleFeature = (feature: HomeFeature) => {
-    if (window.matchMedia('(hover: hover)').matches) {
+  /** 手机端点击后弹出说明，避免悬停和点击互相抢状态。 */
+  const openFeatureModal = (feature: HomeFeature) => {
+    if (canHoverPreview) {
       return
     }
-    window.clearTimeout(hideTimerRef.current)
-    setActiveFeature((current) => (current?.key === feature.key ? null : feature))
+    setFeatureModal(feature)
   }
 
   /** 整颗按钮跳转，避免只有文字能点。 */
@@ -153,10 +161,10 @@ const Home: React.FC = () => {
                 <button
                   key={feature.key}
                   type="button"
-                  className={`feature-item${activeFeature?.key === feature.key ? ' feature-item--active' : ''}`}
+                  className={`feature-item${(canHoverPreview ? activeFeature : featureModal)?.key === feature.key ? ' feature-item--active' : ''}`}
                   onMouseEnter={() => showFeature(feature)}
                   onFocus={() => showFeature(feature)}
-                  onClick={() => toggleFeature(feature)}
+                  onClick={() => openFeatureModal(feature)}
                 >
                   <span className="feature-icon">{feature.icon}</span>
                   <span className="feature-text">{feature.label}</span>
@@ -180,7 +188,7 @@ const Home: React.FC = () => {
               )}
             </aside>
           </div>
-          <Space size="middle" className="home-actions">
+          <div className="home-actions">
             {isAuthenticated ? (
               <Button type="primary" size="large" className="home-button" onClick={goToCreation}>
                 启动创作
@@ -190,12 +198,31 @@ const Home: React.FC = () => {
                 接入系统
               </Button>
             )}
-          </Space>
-          <button type="button" className="home-guide-link" onClick={() => setGuideOpen(true)}>
-            使用说明
-          </button>
+            <button type="button" className="home-guide-link" onClick={() => setGuideOpen(true)}>
+              使用说明
+            </button>
+          </div>
         </Col>
       </Row>
+
+      <Modal
+        open={Boolean(featureModal)}
+        title={featureModal ? `${featureModal.icon} ${featureModal.label}` : ''}
+        footer={null}
+        onCancel={() => setFeatureModal(null)}
+        destroyOnClose
+      >
+        {featureModal && (
+          <>
+            <p className="home-feature-preview__summary">{featureModal.summary}</p>
+            <ul className="home-feature-preview__list">
+              {featureModal.details.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Modal>
 
       <Modal
         open={guideOpen}

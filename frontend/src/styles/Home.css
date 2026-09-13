@@ -249,18 +249,24 @@
 }
 
 .home-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-top: 1.5rem;
 }
 
 .home-guide-link {
-  display: inline-block;
-  margin-top: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
   padding: 0;
   border: none;
   background: none;
   color: var(--text-secondary);
   font-size: 0.9rem;
   letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -276,8 +282,7 @@
 }
 
 .home-button {
-  margin-right: 1rem;
-  margin-bottom: 1rem;
+  margin: 0;
   position: relative;
   overflow: hidden;
   border-radius: 8px;
@@ -499,11 +504,7 @@
   }
 
   .home-feature-preview {
-    position: static;
-    width: auto;
-    top: auto;
-    left: auto;
-    margin-top: 0.8rem;
+    display: none;
   }
 
   .feature-item {
@@ -516,24 +517,18 @@
   
   .home-actions {
     margin-top: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
+    justify-content: flex-start;
+    gap: 0.85rem;
   }
   
   .home-button {
-    margin-right: 0;
-    margin-bottom: 0;
-    width: 100%;
-    max-width: 280px;
+    width: auto;
+    max-width: none;
   }
 
   .home-guide-link {
-    display: block;
-    width: 100%;
-    max-width: 280px;
-    text-align: center;
-    margin-top: 0.15rem;
+    width: auto;
+    text-align: left;
   }
 }
 
