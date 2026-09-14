@@ -3,7 +3,8 @@ import util from 'util'
 import { Readable } from 'stream'
 import type { AiContentResult, AiPlatform, AiStreamPhase, AiUsage, SettingType } from '../../../shared/types'
 import { DEFAULT_AI_MODEL, DEFAULT_AI_PLATFORM } from '../constants/aiDefaults'
-import { estimateTokens } from '../utils/tokenEstimate'
+import { countTokens } from './tokenizerService'
+import { toTokenInt } from '../utils/intTokens'
 import { consumeSseBuffer, extractStreamContent, extractStreamReasoning, type OpenAiStreamChunk } from '../utils/sseParser'
 
 export interface AiOptions {
@@ -34,6 +35,11 @@ interface OpenAIUsage {
   completionTokens?: number
   total_tokens?: number
   totalTokens?: number
+  prompt_cache_hit_tokens?: number
+  prompt_tokens_details?: {
+    cached_tokens?: number
+    cachedTokens?: number
+  }
 }
 
 type ChatRequestBody = Record<string, unknown> & {
@@ -42,6 +48,7 @@ type ChatRequestBody = Record<string, unknown> & {
   max_tokens: number
   temperature: number
   stream?: boolean
+  stream_options?: { include_usage: boolean }
 }
 
 const normalizeStreamCallbacks = (input?: LegacyChunkCallback | AiStreamCallbacks): AiStreamCallbacks => {
@@ -154,9 +161,12 @@ class AIService {
     const defaultBaseURL = PLATFORM_BASE_URLS[normalizedPlatform]
     const defaultApiKey = getPlatformEnvKeys()[normalizedPlatform]
 
+    const userApiKey = normalizeApiKey(aiOptions.apiKey)
+    const callerProvidedKey = Object.prototype.hasOwnProperty.call(aiOptions, 'apiKey')
     return {
       baseURL: aiOptions.customBaseURL || defaultBaseURL,
-      apiKey: normalizeApiKey(aiOptions.apiKey) || defaultApiKey || ''
+      // 调用方已经指定密钥时，不再回落到环境变量默认 Key
+      apiKey: userApiKey || (callerProvidedKey ? '' : defaultApiKey || '')
     }
   }
 
@@ -193,25 +203,49 @@ class AIService {
     }
   }
 
-  estimateTokens(text: unknown): number {
-    return estimateTokens(text, 4)
+  estimateTokens(text: unknown, platform = 'custom', model = ''): number {
+    return countTokens(platform, model, typeof text === 'string' ? text : '').tokens
   }
 
-  normalizeUsage(usage: OpenAIUsage | null | undefined, prompt: string, content: string): AiUsage {
-    if (usage) {
-      const promptTokens = Number(usage.prompt_tokens ?? usage.promptTokens) || 0
-      const completionTokens = Number(usage.completion_tokens ?? usage.completionTokens) || 0
-      const totalTokens = Number(usage.total_tokens ?? usage.totalTokens) || (promptTokens + completionTokens)
-      return { promptTokens, completionTokens, totalTokens, isEstimated: false }
+  /** 读取官方 usage，并拆出缓存命中量。取最后一个带 usage 的 chunk。 */
+  normalizeUsage(usage: OpenAIUsage | null | undefined, prompt: string, content: string, platform = 'custom', model = ''): AiUsage {
+    const promptTokens = toTokenInt(usage?.prompt_tokens ?? usage?.promptTokens)
+    const completionTokens = toTokenInt(usage?.completion_tokens ?? usage?.completionTokens)
+    const hasOfficial = Boolean(usage && (promptTokens > 0 || completionTokens > 0))
+    if (hasOfficial && usage) {
+      let cachedPromptTokens = toTokenInt(
+        usage.prompt_tokens_details?.cached_tokens
+        ?? usage.prompt_tokens_details?.cachedTokens
+        ?? usage.prompt_cache_hit_tokens
+      )
+      if (cachedPromptTokens > promptTokens) cachedPromptTokens = promptTokens
+      const totalTokens = toTokenInt(usage.total_tokens ?? usage.totalTokens) || (promptTokens + completionTokens)
+      return {
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        isEstimated: false,
+        tokenSource: 'api',
+        cachedPromptTokens,
+        uncachedPromptTokens: promptTokens - cachedPromptTokens
+      }
     }
 
-    const promptTokens = this.estimateTokens(prompt)
-    const completionTokens = this.estimateTokens(content)
-    return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, isEstimated: true }
+    const promptCount = countTokens(platform, model, prompt)
+    const completionCount = countTokens(platform, model, content)
+    return {
+      promptTokens: promptCount.tokens,
+      completionTokens: completionCount.tokens,
+      totalTokens: promptCount.tokens + completionCount.tokens,
+      isEstimated: true,
+      tokenSource: promptCount.source,
+      cachedPromptTokens: 0,
+      uncachedPromptTokens: promptCount.tokens
+    }
   }
 
-  createResult(prompt: string, content: string, usage?: OpenAIUsage | null): AiContentResult {
-    return { content, usage: this.normalizeUsage(usage, prompt, content) }
+  createResult(prompt: string, content: string, usage?: OpenAIUsage | null, platform = 'custom', model = ''): AiContentResult {
+    return { content, usage: this.normalizeUsage(usage, prompt, content, platform, model) }
   }
 
   async callOpenAICompatibleAPI(
@@ -237,6 +271,7 @@ class AIService {
       const shouldStream = !!(callbacks.onChunk || callbacks.onPhase)
       if (shouldStream) {
         requestData.stream = true
+        requestData.stream_options = { include_usage: true }
       }
 
       const response = await axios.post<ChatCompletionResponse | Readable>(baseURL, requestData, {
@@ -306,7 +341,7 @@ class AIService {
             if (!fullContent) {
               reject(new Error('生成内容为空'))
             } else {
-              resolve(this.createResult(prompt, fullContent, usage))
+              resolve(this.createResult(prompt, fullContent, usage, platform, model))
             }
           })
 
@@ -323,11 +358,11 @@ class AIService {
       if (!content) {
         const reasoning = message?.reasoning_content?.trim()
         if (enableDeepThinking && reasoning) {
-          return this.createResult(prompt, reasoning, data.usage)
+          return this.createResult(prompt, reasoning, data.usage, platform, model)
         }
         throw new Error('生成内容为空')
       }
-      return this.createResult(prompt, content, data.usage)
+      return this.createResult(prompt, content, data.usage, platform, model)
     } catch (error) {
       console.error('调用AI API失败:', getErrorMessage(error))
       if (axios.isAxiosError(error) && error.response) {

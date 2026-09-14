@@ -363,7 +363,7 @@ const OutlineDiagramModal: React.FC<OutlineDiagramModalProps> = ({
       onCancel={onClose}
       width={960}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       afterOpenChange={handleModalOpenChange}
     >
       <Space wrap style={{ marginBottom: 16 }}>

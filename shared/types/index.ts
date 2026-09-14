@@ -2,6 +2,12 @@ export type UserRole = 'user' | 'admin'
 export type UserStatus = 'active' | 'banned'
 export type AiPlatform = 'aliyun' | 'zhipu' | 'deepseek' | 'openai' | 'custom'
 export type AiRequestStatus = 'success' | 'failed'
+export type AiKeySource = 'user' | 'env'
+export type AiTokenSource = 'api' | 'tokenizer' | 'heuristic'
+export type AiModelCapability = 'chat' | 'other' | 'unknown'
+export type AiCapabilitySource = 'seed' | 'adapter' | 'admin'
+export type AiCatalogSource = 'api' | 'manual' | 'seed'
+export type AiPriceSource = 'official' | 'community' | 'manual'
 export type SettingType = 'character' | 'world' | 'item'
 export type AiStreamPhase = 'waiting' | 'thinking' | 'generating'
 export type CreationStage = 'inspiration' | 'worldview' | 'characters' | 'outline' | 'writing'
@@ -143,10 +149,23 @@ export interface AiRequestLog {
   platform: string
   model: string
   status: AiRequestStatus
+  keySource?: AiKeySource | null
+  tokenSource?: AiTokenSource | null
   promptTokens: number
+  cachedPromptTokens?: number
+  uncachedPromptTokens?: number
   completionTokens: number
   totalTokens: number
   isEstimated: boolean
+  costAmount?: string | null
+  costCurrency?: string | null
+  costAmountCny?: string | null
+  fxRateUsed?: string | null
+  fxRateSource?: string | null
+  inputPrice?: string | null
+  cachedInputPrice?: string | null
+  outputPrice?: string | null
+  costFlag?: string | null
   durationMs?: number | null
   promptLength: number
   resultLength: number
@@ -158,6 +177,9 @@ export interface AiRequestLog {
 export interface AdminUser extends User {
   requestCount: number
   totalTokens: number
+  paidCostCnyMonth?: string
+  paidCostCnyTotal?: string
+  userKeyTokens?: number
 }
 
 export interface PaginatedResponse<T> {
@@ -180,6 +202,80 @@ export interface UsageSummary {
   failedRequests: number
   totalTokens: number
   todayTokens: number
+  todayPaidCostCny?: string
+  monthPaidCostCny?: string
+  userKeyRequestRatio?: number
+}
+
+export interface UsageBreakdownItem {
+  platform: string
+  model: string
+  promptTokens: number
+  cachedPromptTokens: number
+  completionTokens: number
+  totalTokens: number
+  requestCount: number
+}
+
+export interface UserUsageSummary {
+  today: { promptTokens: number; cachedPromptTokens: number; completionTokens: number; totalTokens: number }
+  month: { promptTokens: number; cachedPromptTokens: number; completionTokens: number; totalTokens: number }
+  total: { promptTokens: number; cachedPromptTokens: number; completionTokens: number; totalTokens: number }
+  officialCount: number
+  estimatedCount: number
+  breakdown: UsageBreakdownItem[]
+}
+
+export interface UserUsageLog {
+  id: number
+  action: string
+  platform: string
+  model: string
+  promptTokens: number
+  cachedPromptTokens: number
+  uncachedPromptTokens: number
+  completionTokens: number
+  totalTokens: number
+  isEstimated: boolean
+  tokenSource?: AiTokenSource | null
+  keySource?: AiKeySource | null
+  createdAt: string
+}
+
+export interface AiCatalogModel {
+  id?: number
+  platform: Exclude<AiPlatform, 'custom'>
+  modelId: string
+  label: string
+  ownedBy?: string | null
+  capability: AiModelCapability
+  capabilitySource: AiCapabilitySource
+  enabled: boolean
+  recommended: boolean
+  sortOrder: number
+  description?: string | null
+  badge?: string | null
+  source: AiCatalogSource
+  syncedAt?: string | null
+}
+
+export interface AiCatalogResponse {
+  platforms: Record<string, AiCatalogModel[]>
+  syncedAt: string | null
+  fallback: boolean
+}
+
+export interface AiModelPrice {
+  id?: number
+  platform: string
+  modelId: string
+  inputPerMillion: string
+  outputPerMillion: string
+  cachedInputPerMillion?: string | null
+  currency: 'CNY' | 'USD'
+  source: AiPriceSource
+  syncedAt?: string | null
+  notes?: string | null
 }
 
 export interface NovelSnapshot {
@@ -346,12 +442,16 @@ export interface AiUsage {
   completionTokens: number
   totalTokens: number
   isEstimated: boolean
+  tokenSource?: AiTokenSource
+  cachedPromptTokens?: number
+  uncachedPromptTokens?: number
 }
 
 export interface AiContentResult {
   content: string
   plot?: string
   usage?: AiUsage
+  prompt?: string
 }
 
 export type CharacterCardPayload = Partial<Omit<CharacterCard, 'id' | 'novelId' | 'createdAt' | 'updatedAt'>>

@@ -92,45 +92,12 @@ export interface Feedback {
   User?: Pick<User, 'id' | 'username'>
 }
 
-export interface AiRequestLog {
-  id: number
-  userId: number
-  novelId?: number | null
-  chapterId?: number | null
-  action: string
-  platform: string
-  model: string
-  status: 'success' | 'failed'
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-  isEstimated: boolean
-  durationMs?: number | null
-  promptLength: number
-  resultLength: number
-  errorMessage?: string | null
-  createdAt: string
-  User?: Pick<User, 'id' | 'username'>
-}
-
-export interface AdminUser extends User {
-  requestCount: number
-  totalTokens: number
-}
 
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
   page: number
   limit: number
-}
-
-export interface UsageSummary {
-  totalRequests: number
-  successRequests: number
-  failedRequests: number
-  totalTokens: number
-  todayTokens: number
 }
 
 export interface AIConfig {

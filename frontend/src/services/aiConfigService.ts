@@ -21,6 +21,9 @@ export interface AiConfigSummary {
   activePlatform: string
   activeModel: string
   usingDefault: boolean
+  useOwnAiKey: boolean
+  defaultPlatform: string
+  defaultModel: string
   hint: string | null
   configuredPlatforms: ConfiguredPlatform[]
   platformStatus?: AiConfigStatus
@@ -37,8 +40,20 @@ export const aiConfigService = {
     return response.data
   },
 
-  saveConfig: async (data: { platform: string; apiKey: string; model: string; customBaseURL?: string }): Promise<AiConfigStatus> => {
+  saveConfig: async (data: {
+    platform?: string
+    apiKey?: string
+    model?: string
+    customBaseURL?: string
+    useOwnAiKey?: boolean
+  }): Promise<AiConfigSummary> => {
     const response = await api.post('/ai/config', data)
+    return response.data
+  },
+
+  /** 已启用模型目录，失败时由调用方回退静态种子。 */
+  getCatalog: async (): Promise<import('@app-types/index').AiCatalogResponse> => {
+    const response = await api.get('/ai/catalog')
     return response.data
   }
 }

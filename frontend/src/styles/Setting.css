@@ -65,6 +65,35 @@
   color: var(--primary-color);
 }
 
+.setting-key-mode {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: var(--btn-bg);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
+}
+
+.setting-key-mode-copy {
+  min-width: 0;
+}
+
+.setting-key-mode-title {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.setting-key-mode-desc {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* 平台卡片 */
 .platform-cards {
   display: grid;

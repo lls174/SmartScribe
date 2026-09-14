@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Layout, Menu, Button, Space, Dropdown, Drawer } from 'antd'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@hooks/useAuth'
-import { UserOutlined, LogoutOutlined, DeleteOutlined, MenuOutlined, BulbOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { UserOutlined, LogoutOutlined, DeleteOutlined, MenuOutlined, BulbOutlined, SafetyCertificateOutlined, BarChartOutlined } from '@ant-design/icons'
 
 const { Header: AntHeader } = Layout
 
@@ -59,6 +59,11 @@ const Header: React.FC = () => {
       key: 'profile',
       icon: <UserOutlined />,
       label: <Link to="/profile">个人中心</Link>
+    },
+    {
+      key: 'usage',
+      icon: <BarChartOutlined />,
+      label: <Link to="/profile?tab=usage">AI 用量</Link>
     },
     {
       key: 'trash',

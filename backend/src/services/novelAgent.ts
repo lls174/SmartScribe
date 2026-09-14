@@ -14,6 +14,7 @@ interface ChapterTaskResult {
   content: string
   plot: string
   usage: AiUsage | null
+  prompt: string
 }
 
 const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error)
@@ -29,12 +30,18 @@ class NovelAgent {
       promptTokens: total.promptTokens + usage.promptTokens,
       completionTokens: total.completionTokens + usage.completionTokens,
       totalTokens: total.totalTokens + usage.totalTokens,
-      isEstimated: total.isEstimated || usage.isEstimated
+      isEstimated: total.isEstimated || usage.isEstimated,
+      tokenSource: total.isEstimated || usage.isEstimated ? 'heuristic' : 'api',
+      cachedPromptTokens: (total.cachedPromptTokens || 0) + (usage.cachedPromptTokens || 0),
+      uncachedPromptTokens: (total.uncachedPromptTokens || 0) + (usage.uncachedPromptTokens ?? usage.promptTokens)
     }), {
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
-      isEstimated: false
+      isEstimated: false,
+      tokenSource: 'api',
+      cachedPromptTokens: 0,
+      uncachedPromptTokens: 0
     })
   }
 
@@ -53,7 +60,7 @@ class NovelAgent {
     const content = contentResult.content
     const plot = contextManager.extractSummary(content, 200)
 
-    return { content, plot, usage: contentResult.usage ?? null }
+    return { content, plot, usage: contentResult.usage ?? null, prompt: fullPrompt }
   }
 
   async continueChapter(
@@ -71,7 +78,7 @@ class NovelAgent {
     const content = contentResult.content
     const plot = contextManager.extractSummary(content, 200)
 
-    return { content, plot, usage: contentResult.usage ?? null }
+    return { content, plot, usage: contentResult.usage ?? null, prompt: fullPrompt }
   }
 
   async polishChapter(
@@ -85,7 +92,8 @@ class NovelAgent {
     const systemPrompt = contextManager.buildSystemPrompt('polish')
     const taskPrompt = contextManager.buildPolishPrompt(userPrompt)
     const fullPrompt = this.composeAgentPrompt({ task: 'polish', systemPrompt, novelContext, taskPrompt })
-    return aiService.generateContent(fullPrompt, platform, model, streamCallbacks, aiOptions)
+    const result = await aiService.generateContent(fullPrompt, platform, model, streamCallbacks, aiOptions)
+    return { ...result, prompt: fullPrompt }
   }
 
   async generateOutline(
@@ -99,7 +107,8 @@ class NovelAgent {
     const systemPrompt = contextManager.buildSystemPrompt('outline')
     const taskPrompt = `请根据以下信息生成小说大纲：\n${userPrompt}`
     const fullPrompt = this.composeAgentPrompt({ task: 'outline', systemPrompt, novelContext, taskPrompt })
-    return aiService.generateContent(fullPrompt, platform, model, streamCallbacks, aiOptions)
+    const result = await aiService.generateContent(fullPrompt, platform, model, streamCallbacks, aiOptions)
+    return { ...result, prompt: fullPrompt }
   }
 
   assembleMemoryContext(novelContext: string): string {

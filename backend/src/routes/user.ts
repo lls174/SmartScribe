@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import { body } from 'express-validator'
-import { User } from '../models'
+import { Op, fn, col } from 'sequelize'
+import { AiRequestLog, User } from '../models'
 import { verifyToken } from '../middleware/auth'
 import { validateRequest } from '../middleware/validate'
 import { loginRegisterLimiter } from '../middleware/rateLimit'
@@ -127,5 +128,96 @@ router.put('/password',
     res.json({ message: '密码修改成功' })
   }, '修改密码失败')
 )
+
+const startOfToday = (): Date => {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+const startOfMonth = (): Date => {
+  const date = new Date()
+  date.setDate(1)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+const sumTokens = (rows: Array<Record<string, unknown>>): {
+  promptTokens: number
+  cachedPromptTokens: number
+  completionTokens: number
+  totalTokens: number
+} => ({
+  promptTokens: Number(rows[0]?.promptTokens) || 0,
+  cachedPromptTokens: Number(rows[0]?.cachedPromptTokens) || 0,
+  completionTokens: Number(rows[0]?.completionTokens) || 0,
+  totalTokens: Number(rows[0]?.totalTokens) || 0
+})
+
+router.get('/usage/summary', verifyToken, asyncHandler(async (req, res) => {
+  const userId = req.userId!
+  const tokenAttrs = [
+    [fn('SUM', col('promptTokens')), 'promptTokens'],
+    [fn('SUM', col('cachedPromptTokens')), 'cachedPromptTokens'],
+    [fn('SUM', col('completionTokens')), 'completionTokens'],
+    [fn('SUM', col('totalTokens')), 'totalTokens']
+  ] as const
+
+  const [todayRows, monthRows, totalRows, officialCount, estimatedCount, breakdown] = await Promise.all([
+    AiRequestLog.findAll({ attributes: [...tokenAttrs], where: { userId, createdAt: { [Op.gte]: startOfToday() } }, raw: true }) as unknown as Array<Record<string, unknown>>,
+    AiRequestLog.findAll({ attributes: [...tokenAttrs], where: { userId, createdAt: { [Op.gte]: startOfMonth() } }, raw: true }) as unknown as Array<Record<string, unknown>>,
+    AiRequestLog.findAll({ attributes: [...tokenAttrs], where: { userId }, raw: true }) as unknown as Array<Record<string, unknown>>,
+    AiRequestLog.count({ where: { userId, isEstimated: false } }),
+    AiRequestLog.count({ where: { userId, isEstimated: true } }),
+    AiRequestLog.findAll({
+      attributes: [
+        'platform',
+        'model',
+        [fn('SUM', col('promptTokens')), 'promptTokens'],
+        [fn('SUM', col('cachedPromptTokens')), 'cachedPromptTokens'],
+        [fn('SUM', col('completionTokens')), 'completionTokens'],
+        [fn('SUM', col('totalTokens')), 'totalTokens'],
+        [fn('COUNT', col('id')), 'requestCount']
+      ],
+      where: { userId },
+      group: ['platform', 'model'],
+      raw: true
+    }) as unknown as Array<Record<string, unknown>>
+  ])
+
+  res.json({
+    today: sumTokens(todayRows),
+    month: sumTokens(monthRows),
+    total: sumTokens(totalRows),
+    officialCount,
+    estimatedCount,
+    breakdown: breakdown.map((row) => ({
+      platform: String(row.platform || ''),
+      model: String(row.model || ''),
+      promptTokens: Number(row.promptTokens) || 0,
+      cachedPromptTokens: Number(row.cachedPromptTokens) || 0,
+      completionTokens: Number(row.completionTokens) || 0,
+      totalTokens: Number(row.totalTokens) || 0,
+      requestCount: Number(row.requestCount) || 0
+    }))
+  })
+}, '获取用量汇总失败'))
+
+router.get('/usage/logs', verifyToken, asyncHandler(async (req, res) => {
+  const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1)
+  const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '10'), 10) || 10))
+  const { rows, count } = await AiRequestLog.findAndCountAll({
+    where: { userId: req.userId! },
+    order: [['createdAt', 'DESC']],
+    limit,
+    offset: (page - 1) * limit,
+    attributes: [
+      'id', 'action', 'platform', 'model', 'promptTokens', 'cachedPromptTokens',
+      'uncachedPromptTokens', 'completionTokens', 'totalTokens', 'isEstimated',
+      'tokenSource', 'keySource', 'createdAt'
+    ]
+  })
+  res.json({ items: rows, total: count, page, limit })
+}, '获取用量明细失败'))
 
 export default router

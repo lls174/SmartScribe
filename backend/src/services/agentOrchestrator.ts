@@ -1,9 +1,10 @@
-import type { AgentRole, AiContentResult, AiPlatform, ConfirmedContext } from '../../../shared/types'
+import type { AgentRole, AiContentResult, AiKeySource, AiPlatform, ConfirmedContext } from '../../../shared/types'
 import { AiProposalLog } from '../models'
 import aiService, { type AiOptions, type AiStreamCallbacks } from './aiService'
 import { buildAgentPrompt, type AgentTask } from './agentPrompts'
 import { parseAgentJson, validateAgentResult } from './agentSchemas'
 import novelMemoryService from './novelMemoryService'
+import { recordAiUsage } from './aiUsageService'
 
 export interface AgentRunOptions {
   novelId: number
@@ -14,6 +15,8 @@ export interface AgentRunOptions {
   platform: AiPlatform
   model: string
   aiOptions: AiOptions
+  keySource?: AiKeySource | null
+  chapterId?: number | null
   streamCallbacks?: AiStreamCallbacks
 }
 
@@ -64,6 +67,7 @@ class AgentOrchestrator {
   async runStructured(options: AgentRunOptions): Promise<StructuredAgentResult> {
     const context = await this.loadContext(options)
     const prompt = buildAgentPrompt(options.role, options.task, context, options.input)
+    const firstStartedAt = Date.now()
     let result = await aiService.generateContent(prompt, options.platform, options.model, options.streamCallbacks, {
       ...options.aiOptions,
       enableJsonMode: true,
@@ -75,9 +79,12 @@ class AgentOrchestrator {
       const data = parseAgentJson(result.content)
       if (!validateAgentResult(options.task, data)) throw new Error('AI 返回结构缺少必需字段')
       await recordProposal(options, context, data)
+      await this.recordCall(options, prompt, result.content, result.usage, firstStartedAt)
       return { data, raw: result.content, degraded: false, usage: result.usage }
     } catch (firstError) {
+      await this.recordCall(options, prompt, result.content, result.usage, firstStartedAt, { parseError: true })
       const repairPrompt = `${prompt}\n\n上一次输出无法通过结构校验。请重新输出严格符合 Schema 的单个 JSON 对象，不要解释。`
+      const repairStartedAt = Date.now()
       try {
         result = await aiService.generateContent(repairPrompt, options.platform, options.model, undefined, {
           ...options.aiOptions,
@@ -88,6 +95,7 @@ class AgentOrchestrator {
         const data = parseAgentJson(result.content)
         if (!validateAgentResult(options.task, data)) throw new Error('AI 重试结果仍缺少必需字段')
         await recordProposal(options, context, data)
+        await this.recordCall(options, repairPrompt, result.content, result.usage, repairStartedAt, { repair: true })
         return { data, raw: result.content, degraded: false, usage: result.usage }
       } catch {
         const data = {
@@ -96,15 +104,43 @@ class AgentOrchestrator {
           error: firstError instanceof Error ? firstError.message : '结构化输出解析失败'
         }
         await recordProposal(options, context, data)
+        await this.recordCall(options, repairPrompt, result.content, result.usage, repairStartedAt, { repair: true, degraded: true })
         return { data, raw: result.content, degraded: true, usage: result.usage }
       }
     }
+  }
+
+  /** 把每次真实发给模型的调用写入用量日志。 */
+  private async recordCall(
+    options: AgentRunOptions,
+    promptText: string,
+    resultText: string | undefined,
+    usage: AiContentResult['usage'],
+    startedAt: number,
+    metadata?: Record<string, unknown>
+  ): Promise<void> {
+    await recordAiUsage({
+      userId: options.userId,
+      novelId: options.novelId,
+      chapterId: options.chapterId ?? null,
+      action: options.task,
+      platform: options.platform,
+      model: options.model,
+      status: 'success',
+      startedAt,
+      promptText,
+      resultText,
+      usage,
+      keySource: options.keySource,
+      metadata
+    })
   }
 
   /** 执行写作任务并返回纯文本，保持现有流式体验。 */
   async runWriter(options: AgentRunOptions): Promise<AiContentResult> {
     const context = await this.loadContext(options)
     const prompt = buildAgentPrompt('writer', options.task, context, options.input)
+    const startedAt = Date.now()
     const result = await aiService.generateContent(prompt, options.platform, options.model, options.streamCallbacks, {
       ...options.aiOptions,
       enableJsonMode: false,
@@ -112,6 +148,7 @@ class AgentOrchestrator {
       maxTokens: options.task === 'summarize' ? 500 : 6000
     })
     await recordProposal(options, context, { content: result.content })
+    await this.recordCall(options, prompt, result.content, result.usage, startedAt)
     return result
   }
 }

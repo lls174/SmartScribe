@@ -74,7 +74,7 @@ app.use(cors({
     }
     callback(null, false)
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   credentials: true
 }))
@@ -88,7 +88,9 @@ const aiLimiter = rateLimit({
   max: 10,
   message: { message: 'AI 接口请求过于频繁，请稍后再试' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // 配置/目录读取不应占用生成配额，否则设置页多请求会立刻 429
+  skip: (req) => req.method === 'GET' || req.method === 'OPTIONS' || req.method === 'HEAD'
 })
 
 app.use('/api/', globalApiLimiter)

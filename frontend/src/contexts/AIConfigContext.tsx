@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { AI_ENABLE_DEEP_THINKING_KEY, readStoredAiConfig } from '@/data/aiModelCatalog'
+import { aiConfigService } from '@services/aiConfigService'
 
 export interface AIConfig {
   platform: string
@@ -41,6 +42,38 @@ export const AIConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [])
 
   const getFullConfig = useCallback(() => config, [config])
+
+  /** 登录后拉取站点默认；未自备密钥时覆盖本地缓存，无需进入设置页。 */
+  useEffect(() => {
+    const syncSiteDefaults = async () => {
+      if (!localStorage.getItem('token')) return
+      try {
+        const summary = await aiConfigService.getSummary()
+        if (summary.useOwnAiKey) return
+        const platform = summary.defaultPlatform?.trim()
+        const model = summary.defaultModel?.trim()
+        if (!platform || !model) return
+        setConfig((prev) => {
+          if (prev.platform === platform && prev.model === model) return prev
+          localStorage.setItem('aiPlatform', platform)
+          localStorage.setItem('aiModel', model)
+          return { ...prev, platform, model }
+        })
+      } catch {
+        // 未登录或接口失败时沿用本地缓存，不影响现有生成流程
+      }
+    }
+
+    const onAuthChange = () => {
+      void syncSiteDefaults()
+    }
+
+    void syncSiteDefaults()
+    window.addEventListener('auth-change', onAuthChange)
+    return () => {
+      window.removeEventListener('auth-change', onAuthChange)
+    }
+  }, [])
 
   return (
     <AIConfigContext.Provider value={{ config, updateConfig, getFullConfig }}>

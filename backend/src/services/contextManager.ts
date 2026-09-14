@@ -1,5 +1,5 @@
 import type { Chapter, NovelContext } from '../../../shared/types'
-import { estimateTokens } from '../utils/tokenEstimate'
+import { countTokens } from './tokenizerService'
 
 type TaskType = 'generate' | 'continue' | 'polish' | 'outline'
 
@@ -31,10 +31,10 @@ interface PolishPromptParams {
 
 class ContextManager {
   readonly MAX_CONTEXT_TOKENS = 6000
-  readonly CHARS_PER_TOKEN = 1.5
+  readonly CHARS_PER_TOKEN = 1.6
 
   estimateTokens(text: unknown): number {
-    return estimateTokens(text, this.CHARS_PER_TOKEN)
+    return countTokens('custom', '', typeof text === 'string' ? text : '').tokens
   }
 
   truncateToTokenLimit(text: string, maxTokens: number): string {

@@ -1,6 +1,10 @@
 import sequelize from '../src/config/db'
 import {
   AiCredential,
+  AppSetting,
+  AiModelAlias,
+  AiModelCatalog,
+  AiModelPrice,
   AiProposalLog,
   AiRequestLog,
   Chapter,
@@ -13,6 +17,7 @@ import {
   NovelVersion,
   User
 } from '../src/models'
+import { seedCatalogIfEmpty } from '../src/services/aiCatalogService'
 
 const initDatabase = async (): Promise<void> => {
   try {
@@ -33,8 +38,13 @@ const initDatabase = async (): Promise<void> => {
     void NovelSetting
     void AiCredential
     void AiProposalLog
+    void AiModelCatalog
+    void AiModelAlias
+    void AiModelPrice
+    void AppSetting
 
     await sequelize.sync({ force: false, alter: false })
+    await seedCatalogIfEmpty()
     console.log('数据库表同步完成')
     console.log('数据库初始化成功！')
     process.exit(0)

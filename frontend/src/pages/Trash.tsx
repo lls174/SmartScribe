@@ -199,7 +199,7 @@ const Trash: React.FC = () => {
     {
       key: 'novels',
       label: (
-        <span>
+        <span className="trash-tabs__label">
           <BookOutlined />
           小说回收站
           {deletedNovels.length > 0 && (
@@ -227,7 +227,7 @@ const Trash: React.FC = () => {
     {
       key: 'chapters',
       label: (
-        <span>
+        <span className="trash-tabs__label">
           <FileTextOutlined />
           章节回收站
           {deletedChapters.length > 0 && (
@@ -264,7 +264,7 @@ const Trash: React.FC = () => {
       </div>
 
       <Card className="trash-card">
-        <Tabs defaultActiveKey="novels" type="card" className="trash-tabs" items={tabItems} />
+        <Tabs defaultActiveKey="novels" className="trash-tabs" items={tabItems} />
       </Card>
     </div>
   )

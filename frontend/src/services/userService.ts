@@ -1,5 +1,5 @@
 import api from './api'
-import type { User } from '@app-types/index'
+import type { PaginatedResponse, User, UserUsageLog, UserUsageSummary } from '@app-types/index'
 
 export const userService = {
   // 用户注册
@@ -36,6 +36,18 @@ export const userService = {
   // 修改密码
   updatePassword: async (data: { currentPassword: string; newPassword: string }) => {
     const response = await api.put('/user/password', data)
+    return response.data
+  },
+
+  /** 当前登录用户的 token 汇总，不含花费。 */
+  getUsageSummary: async (): Promise<UserUsageSummary> => {
+    const response = await api.get('/user/usage/summary')
+    return response.data
+  },
+
+  /** 当前登录用户的用量明细分页。 */
+  getUsageLogs: async (params: { page?: number; limit?: number } = {}): Promise<PaginatedResponse<UserUsageLog>> => {
+    const response = await api.get('/user/usage/logs', { params })
     return response.data
   }
 }

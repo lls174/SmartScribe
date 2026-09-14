@@ -8,8 +8,14 @@ import {
 } from 'sequelize'
 import type {
   AgentRole,
+  AiCapabilitySource,
+  AiCatalogSource,
+  AiKeySource,
+  AiModelCapability,
   AiPlatform,
+  AiPriceSource,
   AiRequestStatus,
+  AiTokenSource,
   CreationStage,
   NovelSnapshot,
   ProposalUserAction,
@@ -26,6 +32,7 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare status: CreationOptional<'active' | 'banned'>
   declare bannedAt: Date | null
   declare banReason: string | null
+  declare useOwnAiKey: CreationOptional<boolean>
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
@@ -49,6 +56,7 @@ User.init({
   status: { type: DataTypes.ENUM('active', 'banned'), allowNull: false, defaultValue: 'active' },
   bannedAt: { type: DataTypes.DATE, allowNull: true },
   banReason: { type: DataTypes.STRING, allowNull: true },
+  useOwnAiKey: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, { sequelize, modelName: 'User', tableName: 'users' })
@@ -239,10 +247,23 @@ export class AiRequestLog extends Model<InferAttributes<AiRequestLog>, InferCrea
   declare platform: string
   declare model: string
   declare status: CreationOptional<AiRequestStatus>
+  declare keySource: AiKeySource | null
+  declare tokenSource: AiTokenSource | null
   declare promptTokens: CreationOptional<number>
+  declare cachedPromptTokens: CreationOptional<number>
+  declare uncachedPromptTokens: CreationOptional<number>
   declare completionTokens: CreationOptional<number>
   declare totalTokens: CreationOptional<number>
   declare isEstimated: CreationOptional<boolean>
+  declare costAmount: string | null
+  declare costCurrency: string | null
+  declare costAmountCny: string | null
+  declare fxRateUsed: string | null
+  declare fxRateSource: string | null
+  declare inputPrice: string | null
+  declare cachedInputPrice: string | null
+  declare outputPrice: string | null
+  declare costFlag: string | null
   declare durationMs: number | null
   declare promptLength: CreationOptional<number>
   declare resultLength: CreationOptional<number>
@@ -261,10 +282,23 @@ AiRequestLog.init({
   platform: { type: DataTypes.STRING, allowNull: false },
   model: { type: DataTypes.STRING, allowNull: false },
   status: { type: DataTypes.ENUM('success', 'failed'), allowNull: false, defaultValue: 'success' },
+  keySource: { type: DataTypes.ENUM('env', 'user'), allowNull: true },
+  tokenSource: { type: DataTypes.ENUM('api', 'tokenizer', 'heuristic'), allowNull: true },
   promptTokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  cachedPromptTokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  uncachedPromptTokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   completionTokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   totalTokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   isEstimated: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  costAmount: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  costCurrency: { type: DataTypes.STRING(8), allowNull: true },
+  costAmountCny: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  fxRateUsed: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  fxRateSource: { type: DataTypes.STRING(64), allowNull: true },
+  inputPrice: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  cachedInputPrice: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  outputPrice: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  costFlag: { type: DataTypes.STRING(128), allowNull: true },
   durationMs: { type: DataTypes.INTEGER, allowNull: true },
   promptLength: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   resultLength: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
@@ -433,6 +467,125 @@ User.hasMany(AiProposalLog, { foreignKey: 'userId' })
 AiProposalLog.belongsTo(User, { foreignKey: 'userId' })
 Novel.hasMany(AiProposalLog, { foreignKey: 'novelId' })
 AiProposalLog.belongsTo(Novel, { foreignKey: 'novelId' })
+
+export class AiModelCatalog extends Model<InferAttributes<AiModelCatalog>, InferCreationAttributes<AiModelCatalog>> {
+  declare id: CreationOptional<number>
+  declare platform: Exclude<AiPlatform, 'custom'>
+  declare modelId: string
+  declare label: string
+  declare ownedBy: string | null
+  declare capability: CreationOptional<AiModelCapability>
+  declare capabilitySource: CreationOptional<AiCapabilitySource>
+  declare enabled: CreationOptional<boolean>
+  declare recommended: CreationOptional<boolean>
+  declare sortOrder: CreationOptional<number>
+  declare description: string | null
+  declare badge: string | null
+  declare rawPayload: Record<string, unknown> | null
+  declare source: CreationOptional<AiCatalogSource>
+  declare syncedAt: Date | null
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+}
+
+AiModelCatalog.init({
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  platform: { type: DataTypes.ENUM('aliyun', 'zhipu', 'deepseek', 'openai'), allowNull: false },
+  modelId: { type: DataTypes.STRING(191), allowNull: false },
+  label: { type: DataTypes.STRING(191), allowNull: false },
+  ownedBy: { type: DataTypes.STRING(191), allowNull: true },
+  capability: { type: DataTypes.ENUM('chat', 'other', 'unknown'), allowNull: false, defaultValue: 'unknown' },
+  capabilitySource: { type: DataTypes.ENUM('seed', 'adapter', 'admin'), allowNull: false, defaultValue: 'adapter' },
+  enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  recommended: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 100 },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  badge: { type: DataTypes.STRING(64), allowNull: true },
+  rawPayload: { type: DataTypes.JSON, allowNull: true },
+  source: { type: DataTypes.ENUM('api', 'manual', 'seed'), allowNull: false, defaultValue: 'seed' },
+  syncedAt: { type: DataTypes.DATE, allowNull: true },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  sequelize,
+  modelName: 'AiModelCatalog',
+  tableName: 'ai_model_catalog',
+  indexes: [{ unique: true, fields: ['platform', 'modelId'] }]
+})
+
+export class AiModelAlias extends Model<InferAttributes<AiModelAlias>, InferCreationAttributes<AiModelAlias>> {
+  declare id: CreationOptional<number>
+  declare platform: string
+  declare modelId: string
+  declare alias: string
+  declare aliasSource: CreationOptional<'manual' | 'community'>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+}
+
+AiModelAlias.init({
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  platform: { type: DataTypes.STRING(32), allowNull: false },
+  modelId: { type: DataTypes.STRING(191), allowNull: false },
+  alias: { type: DataTypes.STRING(191), allowNull: false },
+  aliasSource: { type: DataTypes.ENUM('manual', 'community'), allowNull: false, defaultValue: 'community' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  sequelize,
+  modelName: 'AiModelAlias',
+  tableName: 'ai_model_aliases',
+  indexes: [{ unique: true, fields: ['platform', 'modelId', 'alias'] }]
+})
+
+export class AiModelPrice extends Model<InferAttributes<AiModelPrice>, InferCreationAttributes<AiModelPrice>> {
+  declare id: CreationOptional<number>
+  declare platform: string
+  declare modelId: string
+  declare inputPerMillion: string
+  declare outputPerMillion: string
+  declare cachedInputPerMillion: string | null
+  declare currency: CreationOptional<'CNY' | 'USD'>
+  declare source: CreationOptional<AiPriceSource>
+  declare syncedAt: Date | null
+  declare notes: string | null
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+}
+
+AiModelPrice.init({
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  platform: { type: DataTypes.STRING(32), allowNull: false },
+  modelId: { type: DataTypes.STRING(191), allowNull: false },
+  inputPerMillion: { type: DataTypes.DECIMAL(18, 8), allowNull: false },
+  outputPerMillion: { type: DataTypes.DECIMAL(18, 8), allowNull: false },
+  cachedInputPerMillion: { type: DataTypes.DECIMAL(18, 8), allowNull: true },
+  currency: { type: DataTypes.ENUM('CNY', 'USD'), allowNull: false, defaultValue: 'CNY' },
+  source: { type: DataTypes.ENUM('official', 'community', 'manual'), allowNull: false, defaultValue: 'community' },
+  syncedAt: { type: DataTypes.DATE, allowNull: true },
+  notes: { type: DataTypes.TEXT, allowNull: true },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  sequelize,
+  modelName: 'AiModelPrice',
+  tableName: 'ai_model_prices',
+  indexes: [{ unique: true, fields: ['platform', 'modelId'] }]
+})
+
+export class AppSetting extends Model<InferAttributes<AppSetting>, InferCreationAttributes<AppSetting>> {
+  declare key: string
+  declare value: string
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+}
+
+AppSetting.init({
+  key: { type: DataTypes.STRING(64), primaryKey: true },
+  value: { type: DataTypes.STRING(191), allowNull: false },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, { sequelize, modelName: 'AppSetting', tableName: 'app_settings' })
 
 const syncDatabase = async (): Promise<void> => {
   try {

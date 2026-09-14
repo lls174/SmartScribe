@@ -69,7 +69,7 @@ const USAGE_STEPS = [
   },
   {
     title: '配置 AI',
-    text: '到「设置」选择平台和模型。可填写自己的 API Key；未填写时将使用站点默认密钥（若管理员已配置）。'
+    text: '到「设置」选择平台和模型。可填写自己的 API Key；未填写时将使用站点默认密钥（若管理员已配置）。个人中心可查看自己的 token 用量，花费只在管理后台核算。'
   },
   {
     title: '新建小说',
@@ -210,7 +210,7 @@ const Home: React.FC = () => {
         title={featureModal ? `${featureModal.icon} ${featureModal.label}` : ''}
         footer={null}
         onCancel={() => setFeatureModal(null)}
-        destroyOnClose
+        destroyOnHidden
       >
         {featureModal && (
           <>
@@ -229,7 +229,7 @@ const Home: React.FC = () => {
         title="网站使用说明"
         footer={null}
         onCancel={() => setGuideOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Paragraph className="home-guide-lead">
           本站按「AI 提案、人类终审」来写网文。建议按下面顺序使用，避免一上来就空写正文。

@@ -1,4 +1,4 @@
-import { AiCredential } from '../models'
+import { AiCredential, AppSetting, User } from '../models'
 import { DEFAULT_AI_MODEL, DEFAULT_AI_PLATFORM } from '../constants/aiDefaults'
 import { decryptSecret, encryptSecret } from '../utils/cryptoSecret'
 import type { AiPlatform } from '../../../shared/types'
@@ -9,6 +9,8 @@ export interface UserAiConfig {
   apiKey: string
   customBaseURL?: string
   hasUserApiKey: boolean
+  /** 已开自备密钥但尚未保存 Key，调用方应提示用户填写，不能回落平台默认。 */
+  missingOwnKey?: boolean
 }
 
 export interface AiConfigStatus {
@@ -31,9 +33,15 @@ export interface AiConfigSummary {
   activePlatform: AiPlatform
   activeModel: string
   usingDefault: boolean
+  useOwnAiKey: boolean
+  defaultPlatform: AiPlatform
+  defaultModel: string
   hint: string | null
   configuredPlatforms: ConfiguredPlatform[]
 }
+
+const SITE_DEFAULT_PLATFORM_KEY = 'ai.defaultPlatform'
+const SITE_DEFAULT_MODEL_KEY = 'ai.defaultModel'
 
 const SUPPORTED_PLATFORMS: AiPlatform[] = ['aliyun', 'zhipu', 'deepseek', 'openai', 'custom']
 
@@ -64,6 +72,46 @@ const getEnvApiKey = (platform: AiPlatform): string => {
 
 const getDefaultModel = (platform: AiPlatform): string => DEFAULT_MODEL_BY_PLATFORM[platform] || DEFAULT_AI_MODEL
 
+/** 读取站点默认平台与模型，未配置时回落到代码常量。 */
+export const getSiteAiDefaults = async (): Promise<{ platform: AiPlatform; model: string }> => {
+  const rows = await AppSetting.findAll({
+    where: { key: [SITE_DEFAULT_PLATFORM_KEY, SITE_DEFAULT_MODEL_KEY] }
+  })
+  const map = Object.fromEntries(rows.map((row) => [row.key, row.value]))
+  const platform = normalizePlatform(map[SITE_DEFAULT_PLATFORM_KEY] || DEFAULT_AI_PLATFORM)
+  const model = map[SITE_DEFAULT_MODEL_KEY]?.trim() || getDefaultModel(platform)
+  return { platform, model }
+}
+
+/** 管理员保存站点默认平台与模型。 */
+export const setSiteAiDefaults = async (platform: string, model: string): Promise<{ platform: AiPlatform; model: string }> => {
+  const normalizedPlatform = normalizePlatform(platform)
+  if (normalizedPlatform === 'custom') {
+    throw new Error('站点默认不能使用自定义服务商')
+  }
+  const normalizedModel = model.trim()
+  if (!normalizedModel) {
+    throw new Error('默认模型不能为空')
+  }
+  await AppSetting.upsert({ key: SITE_DEFAULT_PLATFORM_KEY, value: normalizedPlatform })
+  await AppSetting.upsert({ key: SITE_DEFAULT_MODEL_KEY, value: normalizedModel })
+  return { platform: normalizedPlatform, model: normalizedModel }
+}
+
+/** 把数据库里的 0/1/true 统一成布尔值。 */
+const coerceFlag = (value: unknown): boolean => value === true || value === 1 || value === '1'
+
+/** 读取用户是否改用自己的密钥。 */
+export const getUserUseOwnAiKey = async (userId: number): Promise<boolean> => {
+  const user = await User.findByPk(userId, { attributes: ['useOwnAiKey'] })
+  return coerceFlag(user?.getDataValue('useOwnAiKey'))
+}
+
+/** 更新用户是否使用自备密钥。 */
+export const setUserUseOwnAiKey = async (userId: number, useOwnAiKey: boolean): Promise<void> => {
+  await User.update({ useOwnAiKey }, { where: { id: userId } })
+}
+
 const maskApiKey = (apiKey: string): string => {
   if (apiKey.length <= 8) {
     return '****'
@@ -72,20 +120,14 @@ const maskApiKey = (apiKey: string): string => {
 }
 
 export const getActiveAiConfigSummary = async (userId: number): Promise<AiConfigSummary> => {
-  const credentials = await AiCredential.findAll({
-    where: { userId },
-    order: [['updatedAt', 'DESC']]
-  })
-
-  if (credentials.length === 0) {
-    return {
-      activePlatform: DEFAULT_AI_PLATFORM,
-      activeModel: DEFAULT_AI_MODEL,
-      usingDefault: true,
-      hint: '未配置个人密钥，默认使用 DeepSeek。请选择服务商并保存密钥后再切换。',
-      configuredPlatforms: []
-    }
-  }
+  const [defaults, useOwnAiKey, credentials] = await Promise.all([
+    getSiteAiDefaults(),
+    getUserUseOwnAiKey(userId),
+    AiCredential.findAll({
+      where: { userId },
+      order: [['updatedAt', 'DESC']]
+    })
+  ])
 
   const configuredPlatforms: ConfiguredPlatform[] = credentials.map((credential) => ({
     platform: credential.platform,
@@ -94,12 +136,40 @@ export const getActiveAiConfigSummary = async (userId: number): Promise<AiConfig
     customBaseURL: credential.customBaseURL || undefined
   }))
 
-  const active = configuredPlatforms[0]!
+  if (!useOwnAiKey) {
+    return {
+      activePlatform: defaults.platform,
+      activeModel: defaults.model,
+      usingDefault: true,
+      useOwnAiKey: false,
+      defaultPlatform: defaults.platform,
+      defaultModel: defaults.model,
+      hint: '当前使用平台默认密钥。开启「使用自己的密钥」后可选择服务商并填写密钥。',
+      configuredPlatforms
+    }
+  }
 
+  if (configuredPlatforms.length === 0) {
+    return {
+      activePlatform: defaults.platform,
+      activeModel: defaults.model,
+      usingDefault: true,
+      useOwnAiKey: true,
+      defaultPlatform: defaults.platform,
+      defaultModel: defaults.model,
+      hint: '已开启自备密钥，请选择服务商并保存密钥后再生成。',
+      configuredPlatforms: []
+    }
+  }
+
+  const active = configuredPlatforms[0]!
   return {
     activePlatform: active.platform,
     activeModel: active.model,
     usingDefault: false,
+    useOwnAiKey: true,
+    defaultPlatform: defaults.platform,
+    defaultModel: defaults.model,
     hint: null,
     configuredPlatforms
   }
@@ -172,38 +242,64 @@ export const saveUserAiConfig = async (
   }
 }
 
+/** 解密一条已保存的用户密钥。 */
+const readUserCredential = (credential: AiCredential, model?: string): UserAiConfig => {
+  let apiKey = ''
+  try {
+    apiKey = decryptSecret(credential.encryptedApiKey)
+  } catch {
+    throw new Error('已保存的 AI 密钥无法解密，请在设置页重新保存密钥（或检查 AI_KEY_ENCRYPTION_SECRET 是否与保存时一致）')
+  }
+  return {
+    platform: credential.platform,
+    model: model?.trim() || credential.model || getDefaultModel(credential.platform),
+    apiKey,
+    customBaseURL: credential.customBaseURL || undefined,
+    hasUserApiKey: true
+  }
+}
+
+/** 优先取指定平台的用户密钥，没有则取最近保存的一条。 */
+const findUserCredential = async (userId: number, platform?: AiPlatform): Promise<AiCredential | null> => {
+  if (platform) {
+    const matched = await AiCredential.findOne({ where: { userId, platform } })
+    if (matched) return matched
+  }
+  return AiCredential.findOne({
+    where: { userId },
+    order: [['updatedAt', 'DESC']]
+  })
+}
+
 export const getUserAiConfig = async (userId?: number, platform?: string, model?: string): Promise<UserAiConfig> => {
-  const normalizedPlatform = normalizePlatform(platform)
+  const defaults = await getSiteAiDefaults()
 
   if (userId) {
-    const credential = await AiCredential.findOne({ where: { userId, platform: normalizedPlatform } })
-  if (credential) {
-    let apiKey = ''
-    try {
-      apiKey = decryptSecret(credential.encryptedApiKey)
-    } catch {
-      throw new Error('已保存的 AI 密钥无法解密，请在设置页重新保存密钥（或检查 AI_KEY_ENCRYPTION_SECRET 是否与保存时一致）')
-    }
-    return {
-      platform: normalizedPlatform,
-      model: model?.trim() || credential.model || getDefaultModel(normalizedPlatform),
-      apiKey,
-        customBaseURL: credential.customBaseURL || undefined,
-        hasUserApiKey: true
-      }
-    }
-
-    const userCredentialCount = await AiCredential.count({ where: { userId } })
-    if (userCredentialCount === 0) {
+    const useOwnAiKey = await getUserUseOwnAiKey(userId)
+    if (!useOwnAiKey) {
       return {
-        platform: normalizedPlatform,
-        model: model?.trim() || getDefaultModel(normalizedPlatform),
-        apiKey: getEnvApiKey(normalizedPlatform),
+        platform: defaults.platform,
+        model: defaults.model,
+        apiKey: getEnvApiKey(defaults.platform),
         hasUserApiKey: false
       }
     }
+
+    const requestedPlatform = platform ? normalizePlatform(platform) : undefined
+    const credential = await findUserCredential(userId, requestedPlatform)
+    if (credential) {
+      return readUserCredential(credential, requestedPlatform && credential.platform === requestedPlatform ? model : undefined)
+    }
+    return {
+      platform: requestedPlatform || defaults.platform,
+      model: model?.trim() || defaults.model,
+      apiKey: '',
+      hasUserApiKey: false,
+      missingOwnKey: true
+    }
   }
 
+  const normalizedPlatform = normalizePlatform(platform || defaults.platform)
   return {
     platform: normalizedPlatform,
     model: model?.trim() || getDefaultModel(normalizedPlatform),

@@ -21,7 +21,7 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'smart_scribe',
-  logging: process.env.NODE_ENV === 'production' ? false : console.log
+  logging: process.env.DB_LOGGING === 'true' ? console.log : false
 })
 
 const databaseState: DatabaseStatus = {

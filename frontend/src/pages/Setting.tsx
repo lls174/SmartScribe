@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { App as AntdApp, Button, Typography, Form, Select, Input, Space, Card, Alert, Switch, Tag, Progress, Collapse } from 'antd'
+import { App as AntdApp, Button, Typography, Form, Select, Input, Space, Card, Alert, Switch, Tag, Progress, Collapse, Spin } from 'antd'
 import { KeyOutlined, ApiOutlined, ExperimentOutlined, InfoCircleOutlined, CheckOutlined, BgColorsOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { useAIConfig } from '@contexts/AIConfigContext'
 import { useTheme } from '@contexts/ThemeContext'
@@ -15,6 +15,10 @@ import {
   readStoredAiConfig
 } from '@/data/aiModelCatalog'
 import { aiConfigService, type AiConfigStatus, type AiConfigSummary } from '@services/aiConfigService'
+import { adminService } from '@services/adminService'
+import { useAuth } from '@hooks/useAuth'
+import type { AiCatalogModel } from '@app-types/index'
+import type { ModelOption } from '@/data/aiModelCatalog'
 import '@styles/Setting.css'
 
 const { Title, Paragraph } = Typography
@@ -27,6 +31,7 @@ const THEME_SWATCH: Record<UIThemeKey, string> = {
 
 const Setting: React.FC = () => {
   const { message } = AntdApp.useApp()
+  const { user } = useAuth()
   const { config, updateConfig } = useAIConfig()
   const { themeKey, setThemeKey } = useTheme()
   const [form] = Form.useForm()
@@ -42,14 +47,35 @@ const Setting: React.FC = () => {
   const maskedApiKey = configuredEntry?.maskedApiKey || (configStatus?.source === 'user' ? configStatus.maskedApiKey : undefined)
   const [desktopPetEnabled, setDesktopPetEnabled] = useState(true)
   const [desktopPetMotion, setDesktopPetMotion] = useState<string>('Idle')
+  const [catalogByPlatform, setCatalogByPlatform] = useState<Record<string, ModelOption[]>>({})
+  const [catalogSyncedAt, setCatalogSyncedAt] = useState<string | null>(null)
+  const [catalogFallback, setCatalogFallback] = useState(true)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [syncingCatalog, setSyncingCatalog] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [togglingKeyMode, setTogglingKeyMode] = useState(false)
+  const useOwnAiKey = configSummary?.useOwnAiKey === true
 
   useEffect(() => {
     const raw = localStorage.getItem('desktopPetEnabled')
     setDesktopPetEnabled(raw === null ? true : raw === 'true')
   }, [])
 
+  /** 把目录项转成设置页下拉使用的模型选项。 */
+  const toModelOption = (item: AiCatalogModel): ModelOption => ({
+    value: item.modelId,
+    label: item.label || item.modelId,
+    recommendation: item.recommended ? 95 : 80,
+    badge: item.badge || undefined,
+    bestFor: item.description || item.modelId,
+    description: item.description || ''
+  })
+
   const currentPlatformConfig = PLATFORM_CONFIG[selectedPlatform]
-  const currentModel = currentPlatformConfig?.models.find((item) => item.value === selectedModel)
+  const currentModels = catalogByPlatform[selectedPlatform]?.length
+    ? catalogByPlatform[selectedPlatform]
+    : currentPlatformConfig?.models || []
+  const currentModel = currentModels.find((item) => item.value === selectedModel)
   const activePlatformConfig = PLATFORM_CONFIG[configSummary?.activePlatform || DEFAULT_AI_PLATFORM]
   const activeConfigured = configSummary?.configuredPlatforms.find((item) => item.platform === configSummary.activePlatform)
 
@@ -58,8 +84,8 @@ const Setting: React.FC = () => {
     setConfigSummary(summary)
     setConfigStatus(summary.platformStatus || null)
 
-    const activePlatform = summary.usingDefault ? DEFAULT_AI_PLATFORM : summary.activePlatform
-    const activeModel = summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel
+    const activePlatform = summary.useOwnAiKey ? summary.activePlatform : summary.defaultPlatform
+    const activeModel = summary.useOwnAiKey ? summary.activeModel : summary.defaultModel
 
     updateConfig({ platform: activePlatform, model: activeModel })
 
@@ -77,47 +103,90 @@ const Setting: React.FC = () => {
   }
 
   useEffect(() => {
-    aiConfigService.getSummary()
-      .then((summary) => {
-        setConfigSummary(summary)
-        const initialPlatform = summary.usingDefault ? DEFAULT_AI_PLATFORM : summary.activePlatform
-        setSelectedPlatform(initialPlatform)
-        setSelectedModel(summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel)
-        updateConfig({
-          platform: initialPlatform,
-          model: summary.usingDefault ? DEFAULT_AI_MODEL : summary.activeModel
+    setCatalogLoading(true)
+    aiConfigService.getCatalog()
+      .then((catalog) => {
+        const mapped: Record<string, ModelOption[]> = {}
+        Object.entries(catalog.platforms).forEach(([platform, items]) => {
+          mapped[platform] = items.map(toModelOption)
         })
+        setCatalogByPlatform(mapped)
+        setCatalogSyncedAt(catalog.syncedAt)
+        setCatalogFallback(catalog.fallback)
       })
       .catch(() => {
-        message.warning('获取 AI 配置状态失败，请稍后刷新重试')
+        setCatalogFallback(true)
       })
-  }, [message, updateConfig])
+      .finally(() => {
+        setCatalogLoading(false)
+      })
+  }, [])
 
   useEffect(() => {
-    if (!configSummary) return
+    let cancelled = false
+    const loadInitialConfig = async () => {
+      try {
+        const summary = await aiConfigService.getSummary()
+        if (cancelled) return
+        const initialPlatform = summary.useOwnAiKey ? summary.activePlatform : summary.defaultPlatform
+        const initialModel = summary.useOwnAiKey ? summary.activeModel : summary.defaultModel
+        setConfigSummary(summary)
+        setSelectedPlatform(initialPlatform)
+        setSelectedModel(initialModel)
+        updateConfig({ platform: initialPlatform, model: initialModel })
 
-    aiConfigService.getPlatformConfig(selectedPlatform)
-      .then((summary) => {
-        setConfigStatus(summary.platformStatus || null)
-        if (summary.platformStatus) {
-          setSelectedModel(summary.platformStatus.model)
+        const platformSummary = await aiConfigService.getPlatformConfig(initialPlatform)
+        if (cancelled) return
+        setConfigSummary(platformSummary)
+        setConfigStatus(platformSummary.platformStatus || null)
+        if (platformSummary.platformStatus) {
+          setSelectedModel(platformSummary.platformStatus.model)
           form.setFieldsValue({
-            platform: selectedPlatform,
-            model: summary.platformStatus.model,
-            customBaseURL: summary.platformStatus.customBaseURL || PLATFORM_CONFIG[selectedPlatform]?.defaultBaseURL || '',
+            platform: initialPlatform,
+            model: platformSummary.platformStatus.model,
+            customBaseURL: platformSummary.platformStatus.customBaseURL || PLATFORM_CONFIG[initialPlatform]?.defaultBaseURL || '',
             apiKey: ''
           })
         }
+      } catch {
+        if (!cancelled) {
+          message.warning('获取 AI 配置状态失败，请稍后刷新重试')
+        }
+      }
+    }
+    void loadInitialConfig()
+    return () => {
+      cancelled = true
+    }
+  }, [form, message, updateConfig])
+
+  /** 管理员从官方接口同步最新模型。 */
+  const handleSyncCatalog = async () => {
+    try {
+      setSyncingCatalog(true)
+      const result = await adminService.syncModels()
+      const catalog = await aiConfigService.getCatalog()
+      const mapped: Record<string, ModelOption[]> = {}
+      Object.entries(catalog.platforms).forEach(([platform, items]) => {
+        mapped[platform] = items.map(toModelOption)
       })
-      .catch(() => {
-        message.warning('获取当前服务商配置失败')
-      })
-  }, [configSummary, form, message, selectedPlatform])
+      setCatalogByPlatform(mapped)
+      setCatalogSyncedAt(catalog.syncedAt)
+      setCatalogFallback(catalog.fallback)
+      const failText = result.failures.length ? `，失败：${result.failures.map((item) => item.platform).join('、')}` : ''
+      message.success(`已同步 ${result.synced} 个模型${failText}`)
+    } catch {
+      message.error('同步模型失败，请确认服务端已配置对应平台 Key')
+    } finally {
+      setSyncingCatalog(false)
+    }
+  }
 
   const handlePlatformChange = (platform: string) => {
     const platformConf = PLATFORM_CONFIG[platform]
     const configured = configSummary?.configuredPlatforms.find((item) => item.platform === platform)
-    const defaultModel = configured?.model || getRecommendedModel(platform)?.value || DEFAULT_AI_MODEL
+    const catalogFirst = catalogByPlatform[platform]?.[0]?.value
+    const defaultModel = configured?.model || catalogFirst || getRecommendedModel(platform)?.value || DEFAULT_AI_MODEL
     setSelectedPlatform(platform)
     setSelectedModel(defaultModel)
     setConfigStatus(null)
@@ -140,17 +209,41 @@ const Setting: React.FC = () => {
     customBaseURL?: string
   }) => {
     try {
+      setSaving(true)
       await aiConfigService.saveConfig({
         platform: values.platform || selectedPlatform,
         apiKey: values.apiKey || '',
         model: values.model,
-        customBaseURL: values.customBaseURL
+        customBaseURL: values.customBaseURL,
+        useOwnAiKey: true
       })
       await loadSummary(values.platform || selectedPlatform)
       setEditingApiKey(false)
       message.success(`${PLATFORM_CONFIG[values.platform || selectedPlatform]?.label || values.platform} 配置已加密保存`)
     } catch {
       message.error('配置保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** 立刻把密钥来源写回服务端：打开后必须自备 Key，关闭则用平台默认。 */
+  const handleUseOwnKeyChange = async (checked: boolean) => {
+    try {
+      setTogglingKeyMode(true)
+      const summary = await aiConfigService.saveConfig({ useOwnAiKey: checked })
+      setConfigSummary(summary)
+      setConfigStatus(summary.platformStatus || null)
+      const nextPlatform = checked ? (summary.activePlatform || selectedPlatform) : summary.defaultPlatform
+      const nextModel = checked ? (summary.activeModel || selectedModel) : summary.defaultModel
+      setSelectedPlatform(nextPlatform)
+      setSelectedModel(nextModel)
+      updateConfig({ platform: nextPlatform, model: nextModel })
+      message.success(checked ? '已改为使用自己的密钥，请填写并保存后再生成' : '已改回平台默认密钥')
+    } catch {
+      message.error('切换密钥来源失败')
+    } finally {
+      setTogglingKeyMode(false)
     }
   }
 
@@ -181,20 +274,21 @@ const Setting: React.FC = () => {
           <ExperimentOutlined /> AI 配置
         </Title>
         <Paragraph className="setting-description">
-          未配置密钥时默认使用 DeepSeek。选择服务商并保存密钥后，将按对应服务商进行 AI 生成。
+          默认使用管理员配置的平台密钥。开启「使用自己的密钥」后，才需要选择服务商并填写 API Key。
         </Paragraph>
       </div>
 
-      {configSummary?.usingDefault && (
+      {useOwnAiKey && configSummary?.usingDefault && (
         <Alert
           className="setting-alert"
           type="warning"
           showIcon
-          message={`当前默认使用 ${PLATFORM_CONFIG[DEFAULT_AI_PLATFORM]?.label || 'DeepSeek'}`}
-          description={configSummary.hint || '请先在下方选择服务商并保存 API 密钥。'}
+          message="请保存自己的密钥"
+          description={configSummary.hint || '请先选择服务商并保存 API 密钥。'}
         />
       )}
 
+      {useOwnAiKey && (
       <Alert
         className="setting-alert"
         type="info"
@@ -203,6 +297,7 @@ const Setting: React.FC = () => {
         message="安全提示"
         description="API 密钥仅在保存时提交一次，并由服务端安全存储；后续生成请求只携带服务商和模型，不会再次传输明文密钥。"
       />
+      )}
 
       <section className="setting-section">
         <h3 className="setting-section-heading">
@@ -231,6 +326,32 @@ const Setting: React.FC = () => {
         </div>
       </section>
 
+      <section className="setting-section">
+        <h3 className="setting-section-heading">
+          <KeyOutlined /> 密钥来源
+        </h3>
+        <div className="setting-key-mode">
+          <div className="setting-key-mode-copy">
+            <span className="setting-key-mode-title">使用自己的密钥</span>
+            <span className="setting-key-mode-desc">
+              关闭时使用平台默认密钥，不展示服务商选项。开启后可选择平台并填写自己的 API Key。
+            </span>
+          </div>
+          <Switch checked={useOwnAiKey} loading={togglingKeyMode} onChange={(checked) => { void handleUseOwnKeyChange(checked) }} />
+        </div>
+      </section>
+
+      {!useOwnAiKey && (
+        <Alert
+          className="setting-alert"
+          type="info"
+          showIcon
+          message="当前使用平台默认"
+          description={`${PLATFORM_CONFIG[configSummary?.defaultPlatform || DEFAULT_AI_PLATFORM]?.label || configSummary?.defaultPlatform || 'DeepSeek'} / ${configSummary?.defaultModel || DEFAULT_AI_MODEL}`}
+        />
+      )}
+
+      {useOwnAiKey && (
       <Form
         form={form}
         className="setting-form"
@@ -276,24 +397,43 @@ const Setting: React.FC = () => {
         </section>
 
         <Card className="setting-card setting-card--form">
+          <Spin spinning={syncingCatalog} tip="正在同步官方模型目录…">
+          <div>
           <h3 className="setting-section-heading">
             <ExperimentOutlined /> 模型与密钥
           </h3>
+          <p className="setting-form-extra">
+            模型列表来自管理员同步的官方目录{catalogFallback ? '（当前为本地种子兜底）' : ''}
+            {catalogSyncedAt ? `，上次同步 ${new Date(catalogSyncedAt).toLocaleString()}` : ''}。
+          </p>
+          {user?.role === 'admin' && (
+            <Button
+              htmlType="button"
+              onClick={handleSyncCatalog}
+              loading={syncingCatalog}
+              disabled={syncingCatalog}
+              style={{ marginBottom: 16 }}
+            >
+              同步最新模型
+            </Button>
+          )}
 
           <Form.Item
             label={<span className="setting-form-label">模型选择</span>}
             name="model"
             rules={[{ required: true, message: '请选择或输入模型名称' }]}
           >
-            {currentPlatformConfig && currentPlatformConfig.models.length > 0 ? (
+            {currentModels.length > 0 ? (
               <Select
                 className="setting-input setting-select"
+                loading={catalogLoading || syncingCatalog}
+                disabled={catalogLoading || syncingCatalog}
                 onChange={(value) => {
                   setSelectedModel(value)
                   updateConfig({ platform: selectedPlatform, model: value })
                 }}
                 optionLabelProp="label"
-                options={currentPlatformConfig.models.map((model) => ({
+                options={currentModels.map((model) => ({
                   value: model.value,
                   label: model.label,
                   model
@@ -404,14 +544,17 @@ const Setting: React.FC = () => {
           )}
 
           <Form.Item className="setting-submit-item">
-            <Button type="primary" htmlType="submit" size="large" block className="setting-submit-btn">
+            <Button type="primary" htmlType="submit" size="large" block className="setting-submit-btn" loading={saving}>
               保存配置
             </Button>
           </Form.Item>
+          </div>
+          </Spin>
         </Card>
       </Form>
+      )}
 
-      {currentModel && (
+      {useOwnAiKey && currentModel && (
         <Card className="setting-card">
           <h3 className="setting-section-heading">模型推荐说明</h3>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -437,33 +580,31 @@ const Setting: React.FC = () => {
           <div className="setting-status-chip">
             <span className="setting-status-label">平台</span>
             <span className="setting-status-value">
-              {configSummary?.usingDefault
-                ? `${activePlatformConfig?.label || PLATFORM_CONFIG[DEFAULT_AI_PLATFORM]?.label || 'DeepSeek'}（默认）`
-                : activePlatformConfig?.label || configSummary?.activePlatform}
+              {configSummary?.useOwnAiKey
+                ? (activePlatformConfig?.label || configSummary?.activePlatform)
+                : `${PLATFORM_CONFIG[configSummary?.defaultPlatform || DEFAULT_AI_PLATFORM]?.label || 'DeepSeek'}（平台默认）`}
             </span>
           </div>
           <div className="setting-status-chip">
             <span className="setting-status-label">模型</span>
             <span className="setting-status-value">
-              {configSummary?.usingDefault ? DEFAULT_AI_MODEL : configSummary?.activeModel}
+              {configSummary?.useOwnAiKey ? configSummary?.activeModel : (configSummary?.defaultModel || DEFAULT_AI_MODEL)}
             </span>
           </div>
           <div className="setting-status-chip setting-status-chip--wide">
             <span className="setting-status-label">密钥</span>
             <span className="setting-status-value">
-              {configSummary?.usingDefault
-                ? '未配置个人密钥'
-                : activeConfigured
-                  ? `已加密保存（${activeConfigured.maskedApiKey}）`
-                  : '未配置'}
+              {configSummary?.useOwnAiKey
+                ? (activeConfigured ? `已加密保存（${activeConfigured.maskedApiKey}）` : '未配置个人密钥')
+                : '使用平台默认密钥'}
             </span>
           </div>
           <div className="setting-status-chip setting-status-chip--wide">
             <span className="setting-status-label">API 地址</span>
             <span className="setting-status-value setting-status-value--mono">
-              {configSummary?.usingDefault
-                ? activePlatformConfig?.defaultBaseURL || '未配置'
-                : activeConfigured?.customBaseURL || activePlatformConfig?.defaultBaseURL || '未配置'}
+              {configSummary?.useOwnAiKey
+                ? (activeConfigured?.customBaseURL || activePlatformConfig?.defaultBaseURL || '未配置')
+                : (PLATFORM_CONFIG[configSummary?.defaultPlatform || DEFAULT_AI_PLATFORM]?.defaultBaseURL || '未配置')}
             </span>
           </div>
         </div>

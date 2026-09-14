@@ -17,12 +17,14 @@ import novelAgent from '../services/novelAgent'
 import contextManager from '../services/contextManager'
 import aiService, { type AiOptions, type AiStreamCallbacks } from '../services/aiService'
 import novelMemoryService from '../services/novelMemoryService'
-import { AiRequestLog, GenerationHistory } from '../models'
+import { GenerationHistory } from '../models'
+import { recordAiUsage, resolveKeySource } from '../services/aiUsageService'
+import { getEnabledCatalog } from '../services/aiCatalogService'
 import { verifyToken } from '../middleware/auth'
 import { validateRequest } from '../middleware/validate'
 import { DEFAULT_AI_MODEL, DEFAULT_AI_PLATFORM } from '../constants/aiDefaults'
 import { SETTING_TYPE_MAP } from '../constants/aiSettingTypes'
-import { getActiveAiConfigSummary, getAiConfigStatus, getUserAiConfig, saveUserAiConfig } from '../services/aiCredentialService'
+import { getActiveAiConfigSummary, getAiConfigStatus, getUserAiConfig, saveUserAiConfig, setUserUseOwnAiKey } from '../services/aiCredentialService'
 import agentOrchestrator from '../services/agentOrchestrator'
 import type { AgentTask } from '../services/agentPrompts'
 import { findOwnedChapter, findOwnedNovel } from '../services/novelQueryService'
@@ -49,6 +51,10 @@ interface AiLogParams {
 
 const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error)
 
+/** 密钥未配置等可预期错误，按 400 返回，避免前端当成服务器宕机。 */
+const isAiConfigError = (message: string): boolean =>
+  message.includes('密钥') || message.includes('设置页') || message.includes('API 地址')
+
 const sendAiRouteError = (res: import('express').Response, error: unknown, fallback: string): void => {
   const message = getErrorMessage(error) || fallback
   if (res.headersSent) {
@@ -58,7 +64,16 @@ const sendAiRouteError = (res: import('express').Response, error: unknown, fallb
     }
     return
   }
-  res.status(500).json({ message })
+  res.status(isAiConfigError(message) ? 400 : 500).json({ message })
+}
+
+const logAiRouteError = (label: string, error: unknown): void => {
+  const message = getErrorMessage(error)
+  if (isAiConfigError(message)) {
+    console.warn(`${label}: ${message}`)
+    return
+  }
+  console.error(`${label}:`, error)
 }
 
 async function resolveAiExecutionConfig(
@@ -69,15 +84,21 @@ async function resolveAiExecutionConfig(
 ): Promise<{
   platform: AiPlatform
   model: string
+  keySource: 'user' | 'env'
   aiOptions: AiOptions & { apiKey: string; customBaseURL?: string }
 }> {
   const config = await getUserAiConfig(userId, requestedPlatform, requestedModel)
-  if (!config.apiKey?.trim()) {
-    throw new Error('API 密钥未配置，请在设置页保存密钥，或在 backend/.env 中配置对应服务商环境变量')
+  if (config.missingOwnKey || !config.apiKey?.trim()) {
+    throw new Error(config.missingOwnKey
+      ? '请先在设置页填写并保存自己的 API 密钥'
+      : config.hasUserApiKey
+        ? '已保存的密钥无效，请在设置页重新填写'
+        : 'API 密钥未配置，请在设置页保存自己的密钥，或关闭开关以使用平台默认密钥')
   }
   return {
     platform: config.platform,
     model: config.model,
+    keySource: config.hasUserApiKey ? 'user' : 'env',
     aiOptions: {
       apiKey: config.apiKey,
       customBaseURL: config.customBaseURL,
@@ -183,16 +204,9 @@ async function writeAiRequestLog({ req, action, platform, model, status, started
 
   try {
     const resultContent = typeof result === 'string' ? result : (result?.content || '')
-    const usage = typeof result === 'object' && result?.usage
-      ? result.usage
-      : {
-        promptTokens: aiService.estimateTokens(promptText),
-        completionTokens: aiService.estimateTokens(resultContent),
-        totalTokens: aiService.estimateTokens(promptText) + aiService.estimateTokens(resultContent),
-        isEstimated: true
-      }
-
-    await AiRequestLog.create({
+    const usage = typeof result === 'object' && result?.usage ? result.usage : null
+    const keySource = await resolveKeySource(req.userId, platform, model)
+    await recordAiUsage({
       userId: req.userId,
       novelId: parseNullableId(req.body.novelId),
       chapterId: parseNullableId(req.body.chapterId),
@@ -200,15 +214,13 @@ async function writeAiRequestLog({ req, action, platform, model, status, started
       platform,
       model,
       status,
-      promptTokens: usage.promptTokens,
-      completionTokens: usage.completionTokens,
-      totalTokens: usage.totalTokens,
-      isEstimated: usage.isEstimated,
-      durationMs: Date.now() - startedAt,
-      promptLength: promptText?.length || 0,
-      resultLength: resultContent?.length || 0,
-      errorMessage: error ? getErrorMessage(error).slice(0, 1000) : null,
-      metadata: metadata ?? null
+      startedAt,
+      promptText,
+      resultText: resultContent,
+      usage,
+      keySource,
+      error,
+      metadata
     })
   } catch (logError) {
     console.warn(`写入AI请求日志失败(${action}):`, getErrorMessage(logError))
@@ -235,6 +247,14 @@ const commonAiValidators = [
     .withMessage('enableDeepThinking 必须是布尔值')
 ]
 
+router.get('/catalog',
+  verifyToken,
+  async (_req, res) => {
+    const catalog = await getEnabledCatalog()
+    res.json(catalog)
+  }
+)
+
 router.get('/config',
   verifyToken,
   async (req, res) => {
@@ -257,10 +277,26 @@ router.post('/config',
   body('apiKey').optional().trim(),
   body('model').optional().trim(),
   body('customBaseURL').optional().trim(),
+  body('useOwnAiKey').optional().isIn([true, false]).withMessage('useOwnAiKey 必须是布尔值'),
   validateRequest,
   async (req, res) => {
-    const status = await saveUserAiConfig(req.userId!, req.body.platform, req.body.apiKey, req.body.model, req.body.customBaseURL)
-    res.json(status)
+    if (typeof req.body.useOwnAiKey === 'boolean') {
+      await setUserUseOwnAiKey(req.userId!, req.body.useOwnAiKey)
+    }
+
+    if (req.body.useOwnAiKey === false) {
+      res.json(await getActiveAiConfigSummary(req.userId!))
+      return
+    }
+
+    if (req.body.platform || req.body.apiKey || req.body.model) {
+      const status = await saveUserAiConfig(req.userId!, req.body.platform, req.body.apiKey, req.body.model, req.body.customBaseURL)
+      const summary = await getActiveAiConfigSummary(req.userId!)
+      res.json({ ...summary, platformStatus: status })
+      return
+    }
+
+    res.json(await getActiveAiConfigSummary(req.userId!))
   }
 )
 
@@ -296,10 +332,10 @@ router.post('/generate',
       }
       await settleRouteLogs([
         recordGenerationHistory({ req, action: 'generate', prompt: payload.prompt, params: { platform, model, ...userPrompt }, result: result.content }),
-        writeAiRequestLog({ req, action: 'generate', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { chapterTitle: payload.chapterTitle, genre: payload.genre, style: payload.style, wordCount: payload.wordCount } })
+        writeAiRequestLog({ req, action: 'generate', platform, model, status: 'success', startedAt, promptText: result.prompt, result, metadata: { chapterTitle: payload.chapterTitle, genre: payload.genre, style: payload.style, wordCount: payload.wordCount } })
       ])
     } catch (error) {
-      console.error('生成章节失败:', error)
+      logAiRouteError('生成章节失败', error)
       await writeAiRequestLog({ req, action: 'generate', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error })
       sendAiRouteError(res, error, '生成章节失败')
     }
@@ -334,10 +370,10 @@ router.post('/continue',
       }
       await settleRouteLogs([
         recordGenerationHistory({ req, action: 'continue', prompt: payload.prompt, params: { platform, model, lastPlot: payload.lastPlot, wordCount: payload.wordCount }, result: result.content }),
-        writeAiRequestLog({ req, action: 'continue', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.lastContent || ''}\n${payload.lastPlot || ''}`, result, metadata: { wordCount: payload.wordCount } })
+        writeAiRequestLog({ req, action: 'continue', platform, model, status: 'success', startedAt, promptText: result.prompt, result, metadata: { wordCount: payload.wordCount } })
       ])
     } catch (error) {
-      console.error('续写章节失败:', error)
+      logAiRouteError('续写章节失败', error)
       await writeAiRequestLog({ req, action: 'continue', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.lastContent || ''}\n${req.body.lastPlot || ''}`, error })
       sendAiRouteError(res, error, '续写章节失败')
     }
@@ -367,10 +403,10 @@ router.post('/polish',
       }
       await settleRouteLogs([
         recordGenerationHistory({ req, action: 'polish', prompt: payload.prompt, params: { platform, model, beforeContent: payload.beforeContent, beforePlot: payload.beforePlot, chapterTitle: payload.chapterTitle }, result: result.content }),
-        writeAiRequestLog({ req, action: 'polish', platform, model, status: 'success', startedAt, promptText: `${payload.prompt || ''}\n${payload.content || ''}`, result, metadata: { contentLength: payload.content.length } })
+        writeAiRequestLog({ req, action: 'polish', platform, model, status: 'success', startedAt, promptText: (result as { prompt?: string }).prompt || `${payload.prompt || ''}\n${payload.content || ''}`, result, metadata: { contentLength: payload.content.length } })
       ])
     } catch (error) {
-      console.error('润色内容失败:', error)
+      logAiRouteError('润色内容失败', error)
       await writeAiRequestLog({ req, action: 'polish', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.prompt || ''}\n${req.body.content || ''}`, error })
       sendAiRouteError(res, error, '润色内容失败')
     }
@@ -402,7 +438,7 @@ router.post('/setting',
         writeAiRequestLog({ req, action: 'setting', platform, model, status: 'success', startedAt, promptText: fullPrompt, result, metadata: { type: payload.type } })
       ])
     } catch (error) {
-      console.error('生成设定失败:', error)
+      logAiRouteError('生成设定失败', error)
       await writeAiRequestLog({ req, action: 'setting', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
       sendAiRouteError(res, error, '生成设定失败')
     }
@@ -430,10 +466,10 @@ router.post('/outline',
         res.end()
       }
       await settleRouteLogs([
-        writeAiRequestLog({ req, action: 'outline', platform, model, status: 'success', startedAt, promptText: userPrompt, result, metadata: { novelType: payload.novelType, length: payload.length } })
+        writeAiRequestLog({ req, action: 'outline', platform, model, status: 'success', startedAt, promptText: (result as { prompt?: string }).prompt || userPrompt, result, metadata: { novelType: payload.novelType, length: payload.length } })
       ])
     } catch (error) {
-      console.error('生成大纲失败:', error)
+      logAiRouteError('生成大纲失败', error)
       await writeAiRequestLog({ req, action: 'outline', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: `${req.body.novelType || ''}\n${req.body.corePlot || ''}`, error })
       sendAiRouteError(res, error, '生成大纲失败')
     }
@@ -462,7 +498,7 @@ router.post('/creative',
         writeAiRequestLog({ req, action: 'creative', platform, model, status: 'success', startedAt, promptText: payload.prompt, result, metadata: { type: payload.type } })
       ])
     } catch (error) {
-      console.error('生成创意失败:', error)
+      logAiRouteError('生成创意失败', error)
       await writeAiRequestLog({ req, action: 'creative', platform: req.body.platform || DEFAULT_AI_PLATFORM, model: req.body.model || DEFAULT_AI_MODEL, status: 'failed', startedAt, promptText: req.body.prompt || '', error, metadata: { type: req.body.type } })
       sendAiRouteError(res, error, '生成创意失败')
     }
@@ -472,13 +508,14 @@ router.post('/creative',
 /** 统一执行灵感智能体提案，并以结构化 result 事件结束 SSE。 */
 const handleProposal = (task: Extract<AgentTask, 'inspiration' | 'setting' | 'setting_all' | 'characters' | 'character_field' | 'outline'>) =>
   async (req: import('express').Request, res: import('express').Response): Promise<void> => {
+    const startedAt = Date.now()
     try {
       const novel = await findOwnedNovel(req.body.novelId, req.userId!)
       if (!novel) {
         res.status(403).json({ message: '小说不存在或无权访问' })
         return
       }
-      const { platform, model, aiOptions } = await resolveAiExecutionConfig(
+      const { platform, model, aiOptions, keySource } = await resolveAiExecutionConfig(
         req.userId,
         req.body.platform,
         req.body.model,
@@ -494,6 +531,7 @@ const handleProposal = (task: Extract<AgentTask, 'inspiration' | 'setting' | 'se
         platform,
         model,
         aiOptions,
+        keySource,
         streamCallbacks
       })
       if (!isConnectionClosed()) {
@@ -501,6 +539,16 @@ const handleProposal = (task: Extract<AgentTask, 'inspiration' | 'setting' | 'se
         res.end()
       }
     } catch (error) {
+      await writeAiRequestLog({
+        req,
+        action: task,
+        platform: req.body.platform || DEFAULT_AI_PLATFORM,
+        model: req.body.model || DEFAULT_AI_MODEL,
+        status: 'failed',
+        startedAt,
+        promptText: '',
+        error
+      })
       sendAiRouteError(res, error, 'AI 提案暂不可用')
     }
   }
@@ -553,7 +601,7 @@ router.post('/review/chapter',
       }
       const draft = typeof req.body.draft === 'string' ? req.body.draft : chapter?.content
       if (!draft?.trim()) return res.status(400).json({ message: '待审正文不能为空' })
-      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const { platform, model, aiOptions, keySource } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
       const result = await agentOrchestrator.runStructured({
         novelId: novel.id,
         userId: req.userId!,
@@ -562,7 +610,9 @@ router.post('/review/chapter',
         input: { draft },
         platform,
         model,
-        aiOptions
+        aiOptions,
+        keySource,
+        chapterId: chapter?.id ?? null
       })
       if (!result.degraded && chapter && result.data.verdict === 'pass') {
         await chapter.update({ stale: false })
@@ -571,7 +621,7 @@ router.post('/review/chapter',
         ? { available: false, message: '审查暂不可用，不影响正文保存', ...result.data }
         : { available: true, ...result.data })
     } catch (error) {
-      console.error('审查章节失败:', error)
+      logAiRouteError('审查章节失败', error)
       res.status(200).json({ available: false, message: '审查暂不可用，不影响正文保存', issues: [] })
     }
   }
@@ -593,7 +643,7 @@ router.post('/write/revise',
         const chapter = await findOwnedChapter(req.body.chapterId, req.userId!)
         if (!chapter || chapter.novelId !== novel.id) return res.status(403).json({ message: '章节不存在或无权访问' })
       }
-      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const { platform, model, aiOptions, keySource } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
       const { isConnectionClosed, streamCallbacks } = setupSSE(res, req)
       await agentOrchestrator.runWriter({
         novelId: novel.id,
@@ -604,6 +654,8 @@ router.post('/write/revise',
         platform,
         model,
         aiOptions,
+        keySource,
+        chapterId: req.body.chapterId ?? null,
         streamCallbacks
       })
       if (!isConnectionClosed()) {
@@ -633,7 +685,7 @@ router.post('/write/review-summary',
       const plot = typeof req.body.plot === 'string' ? req.body.plot : chapter.plot
       if (!draft?.trim()) return res.status(400).json({ message: '章节正文不能为空' })
       if (!plot?.trim()) return res.status(400).json({ message: '请先生成章节概括' })
-      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const { platform, model, aiOptions, keySource } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
       const result = await agentOrchestrator.runStructured({
         novelId: novel.id,
         userId: req.userId!,
@@ -642,7 +694,9 @@ router.post('/write/review-summary',
         input: { draft, plot },
         platform,
         model,
-        aiOptions
+        aiOptions,
+        keySource,
+        chapterId: chapter.id
       })
       res.json(result.degraded
         ? { available: false, message: '概括检查暂不可用', ...result.data }
@@ -667,7 +721,7 @@ router.post('/write/summarize',
       if (!novel || !chapter || chapter.novelId !== novel.id) return res.status(403).json({ message: '小说或章节不存在，或无权访问' })
       const draft = typeof req.body.draft === 'string' ? req.body.draft : chapter.content
       if (!draft.trim()) return res.status(400).json({ message: '章节正文不能为空' })
-      const { platform, model, aiOptions } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
+      const { platform, model, aiOptions, keySource } = await resolveAiExecutionConfig(req.userId, req.body.platform, req.body.model, req.body.enableDeepThinking)
       const result = await agentOrchestrator.runWriter({
         novelId: novel.id,
         userId: req.userId!,
@@ -676,7 +730,9 @@ router.post('/write/summarize',
         input: { draft, chapterOutline: chapter.outline },
         platform,
         model,
-        aiOptions
+        aiOptions,
+        keySource,
+        chapterId: chapter.id
       })
       await chapter.update({ plot: result.content, stalePlot: false })
       res.json({ plot: result.content, chapterId: chapter.id, stalePlot: false })
