@@ -16,15 +16,7 @@ import {
 import { userService } from '@services/userService'
 import { useAuth } from '@hooks/useAuth'
 import type { UserUsageLog, UserUsageSummary } from '@app-types/index'
-import Loading from '@components/Loading'
 import '@styles/Profile.css'
-
-interface UserInfo {
-  id: number
-  username: string
-  email?: string | null
-  createdAt: string
-}
 
 /** 从地址栏读取当前 Tab，只接受个人信息 / 用量 / 密码 */
 const resolveProfileTab = (tab: string | null) => {
@@ -35,10 +27,9 @@ const resolveProfileTab = (tab: string | null) => {
 const Profile: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { isAuthenticated, isLoading, user, logout } = useAuth()
+  const { isAuthenticated, isLoading, user, logout, updateCurrentUser } = useAuth()
   const activeTab = resolveProfileTab(searchParams.get('tab'))
-  const [loading, setLoading] = useState(false)
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+  const [saving, setSaving] = useState(false)
   const [infoForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
   const [usageSummary, setUsageSummary] = useState<UserUsageSummary | null>(null)
@@ -47,59 +38,69 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     if (isLoading) return
-    
     if (!isAuthenticated) {
       navigate('/login')
-      return
     }
-    fetchUserInfo()
-  }, [isAuthenticated, isLoading, navigate]) // eslint-disable-line react-hooks/exhaustive-deps -- 表单实例稳定，仅认证状态变化时刷新资料
+  }, [isAuthenticated, isLoading, navigate])
 
-  const fetchUserInfo = async () => {
-    try {
-      setLoading(true)
-      const data = await userService.getUserInfo()
-      setUserInfo(data)
-      infoForm.setFieldsValue({
-        username: data.username,
-        email: data.email
-      })
+  /** 个人信息用本地缓存立刻填表，不挡整页。 */
+  useEffect(() => {
+    if (!user) return
+    infoForm.setFieldsValue({
+      username: user.username,
+      email: user.email || ''
+    })
+  }, [user, infoForm])
+
+  /** 点开 AI 用量后再拉接口。 */
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'usage') return
+    let cancelled = false
+    const loadUsage = async () => {
       setUsageLoading(true)
       try {
         const [summary, logs] = await Promise.all([
           userService.getUsageSummary(),
           userService.getUsageLogs({ page: 1, limit: 8 })
         ])
+        if (cancelled) return
         setUsageSummary(summary)
         setUsageLogs(logs.items)
+      } catch {
+        if (!cancelled) {
+          message.error('获取用量失败')
+        }
       } finally {
-        setUsageLoading(false)
+        if (!cancelled) {
+          setUsageLoading(false)
+        }
       }
-    } catch (error) {
-      console.error('获取用户信息失败:', error)
-      message.error('获取用户信息失败')
-    } finally {
-      setLoading(false)
     }
-  }
+    void loadUsage()
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, isAuthenticated])
 
   const handleUpdateInfo = async (values: { username: string; email: string }) => {
     try {
-      setLoading(true)
+      setSaving(true)
       await userService.updateUserInfo(values)
+      if (user) {
+        updateCurrentUser({ ...user, username: values.username, email: values.email })
+      }
       message.success('个人信息更新成功')
-      fetchUserInfo()
     } catch (error) {
       console.error('更新个人信息失败:', error)
       message.error('更新个人信息失败')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
-  const handleUpdatePassword = async (values: { 
+  const handleUpdatePassword = async (values: {
     currentPassword: string
-    newPassword: string 
+    newPassword: string
     confirmPassword: string
   }) => {
     if (values.newPassword !== values.confirmPassword) {
@@ -108,7 +109,7 @@ const Profile: React.FC = () => {
     }
 
     try {
-      setLoading(true)
+      setSaving(true)
       await userService.updatePassword({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword
@@ -119,12 +120,12 @@ const Profile: React.FC = () => {
       console.error('修改密码失败:', error)
       message.error('修改密码失败，请检查当前密码是否正确')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
-  if (isLoading || (loading && !userInfo)) {
-    return <Loading />
+  if (!isAuthenticated) {
+    return null
   }
 
   const tabItems = [
@@ -178,7 +179,7 @@ const Profile: React.FC = () => {
                 type="primary"
                 htmlType="submit"
                 size="large"
-                loading={loading}
+                loading={saving}
                 block
               >
                 保存修改
@@ -186,12 +187,12 @@ const Profile: React.FC = () => {
             </Form.Item>
           </Form>
 
-          {userInfo && (
+          {user && (
             <>
               <Divider className="profile-divider" />
               <div className="profile-info">
-                <p>用户ID: {userInfo.id}</p>
-                <p>注册时间: {new Date(userInfo.createdAt).toLocaleString()}</p>
+                <p>用户ID: {user.id}</p>
+                <p>注册时间: {new Date(user.createdAt).toLocaleString()}</p>
               </div>
             </>
           )}
@@ -211,55 +212,57 @@ const Profile: React.FC = () => {
           <Typography.Paragraph type="secondary" className="profile-usage-lead">
             这里只统计你账号下的 token。自备 Key 与平台代付都只显示用量，不展示金额。
           </Typography.Paragraph>
-          <Spin spinning={usageLoading} tip="正在加载用量…">
-          <div>
-          <Row gutter={[16, 16]} className="profile-usage-stats">
-            <Col xs={24} sm={8}>
-              <Card className="profile-usage-card"><Statistic title="今日 Token" value={usageSummary?.today.totalTokens || 0} /></Card>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Card className="profile-usage-card"><Statistic title="本月 Token" value={usageSummary?.month.totalTokens || 0} /></Card>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Card className="profile-usage-card"><Statistic title="累计 Token" value={usageSummary?.total.totalTokens || 0} /></Card>
-            </Col>
-          </Row>
-          <Typography.Paragraph className="profile-usage-detail">
-            今日输入 {usageSummary?.today.promptTokens || 0}（缓存命中 {usageSummary?.today.cachedPromptTokens || 0}），输出 {usageSummary?.today.completionTokens || 0}。
-            官方计数 {usageSummary?.officialCount || 0} 次，估算 {usageSummary?.estimatedCount || 0} 次。
-          </Typography.Paragraph>
-          <Table
-            rowKey={(row) => `${row.platform}-${row.model}`}
-            size="small"
-            pagination={false}
-            loading={usageLoading}
-            dataSource={usageSummary?.breakdown || []}
-            columns={[
-              { title: '平台', dataIndex: 'platform' },
-              { title: '模型', dataIndex: 'model' },
-              { title: '请求', dataIndex: 'requestCount' },
-              { title: '输入', dataIndex: 'promptTokens' },
-              { title: '缓存命中', dataIndex: 'cachedPromptTokens' },
-              { title: '输出', dataIndex: 'completionTokens' },
-              { title: '合计', dataIndex: 'totalTokens' }
-            ]}
-          />
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={false}
-            loading={usageLoading}
-            dataSource={usageLogs}
-            columns={[
-              { title: '动作', dataIndex: 'action' },
-              { title: '平台', dataIndex: 'platform' },
-              { title: '模型', dataIndex: 'model' },
-              { title: 'Token', dataIndex: 'totalTokens', render: (value: number, record: UserUsageLog) => `${value}${record.isEstimated ? '（估算）' : ''}` },
-              { title: '密钥', dataIndex: 'keySource', render: (value?: string | null) => value === 'user' ? '自备 Key' : '平台代付' },
-              { title: '时间', dataIndex: 'createdAt', render: (value: string) => new Date(value).toLocaleString() }
-            ]}
-          />
-          </div>
+          <Spin spinning={usageLoading}>
+            <div className="profile-usage-body">
+              <Row gutter={[16, 16]} className="profile-usage-stats">
+                <Col xs={24} sm={8}>
+                  <Card className="profile-usage-card"><Statistic title="今日 Token" value={usageSummary?.today.totalTokens || 0} /></Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card className="profile-usage-card"><Statistic title="本月 Token" value={usageSummary?.month.totalTokens || 0} /></Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card className="profile-usage-card"><Statistic title="累计 Token" value={usageSummary?.total.totalTokens || 0} /></Card>
+                </Col>
+              </Row>
+              <Typography.Paragraph className="profile-usage-detail">
+                今日输入 {usageSummary?.today.promptTokens || 0}（缓存命中 {usageSummary?.today.cachedPromptTokens || 0}），输出 {usageSummary?.today.completionTokens || 0}。
+                官方计数 {usageSummary?.officialCount || 0} 次，估算 {usageSummary?.estimatedCount || 0} 次。
+              </Typography.Paragraph>
+              <Table
+                className="profile-usage-table"
+                rowKey={(row) => `${row.platform}-${row.model}`}
+                size="small"
+                pagination={false}
+                scroll={{ x: 560 }}
+                dataSource={usageSummary?.breakdown || []}
+                columns={[
+                  { title: '平台', dataIndex: 'platform', width: 88 },
+                  { title: '模型', dataIndex: 'model', ellipsis: true },
+                  { title: '请求', dataIndex: 'requestCount', width: 64 },
+                  { title: '输入', dataIndex: 'promptTokens', width: 72 },
+                  { title: '缓存', dataIndex: 'cachedPromptTokens', width: 72 },
+                  { title: '输出', dataIndex: 'completionTokens', width: 72 },
+                  { title: '合计', dataIndex: 'totalTokens', width: 80 }
+                ]}
+              />
+              <Table
+                className="profile-usage-table"
+                rowKey="id"
+                size="small"
+                pagination={false}
+                scroll={{ x: 640 }}
+                dataSource={usageLogs}
+                columns={[
+                  { title: '动作', dataIndex: 'action', width: 88, ellipsis: true },
+                  { title: '平台', dataIndex: 'platform', width: 88 },
+                  { title: '模型', dataIndex: 'model', ellipsis: true },
+                  { title: 'Token', dataIndex: 'totalTokens', width: 100, render: (value: number, record: UserUsageLog) => `${value}${record.isEstimated ? '（估算）' : ''}` },
+                  { title: '密钥', dataIndex: 'keySource', width: 88, render: (value?: string | null) => value === 'user' ? '自备 Key' : '平台代付' },
+                  { title: '时间', dataIndex: 'createdAt', width: 168, render: (value: string) => new Date(value).toLocaleString() }
+                ]}
+              />
+            </div>
           </Spin>
         </div>
       )
@@ -333,7 +336,7 @@ const Profile: React.FC = () => {
               type="primary"
               htmlType="submit"
               size="large"
-              loading={loading}
+              loading={saving}
               block
             >
               修改密码

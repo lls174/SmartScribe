@@ -1,7 +1,9 @@
 .profile-container {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
   padding: 2rem 1rem;
+  box-sizing: border-box;
 }
 
 .profile-header {
@@ -17,6 +19,8 @@
 .profile-card {
   background: color-mix(in srgb, var(--surface-color) 70%, transparent);
   border: 1px solid var(--header-border);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .profile-card > .ant-card-body {
@@ -69,6 +73,11 @@
 
 .profile-tabs .ant-tabs-content {
   padding: 24px;
+  min-width: 0;
+}
+
+.profile-tabs .ant-tabs-content-holder {
+  min-width: 0;
 }
 
 .profile-tabs__label {
@@ -154,11 +163,30 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .profile-usage-lead,
 .profile-usage-detail {
   margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-usage-body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.profile-usage .ant-spin-nested-loading,
+.profile-usage .ant-spin-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.profile-usage-table {
+  width: 100%;
+  max-width: 100%;
 }
 
 .profile-usage-card {
@@ -204,5 +232,10 @@
 
   .profile-usage-card .ant-card-body {
     padding: 14px 16px;
+  }
+
+  .profile-usage-table .ant-table-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
